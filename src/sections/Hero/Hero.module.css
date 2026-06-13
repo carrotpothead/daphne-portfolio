@@ -1,0 +1,152 @@
+.hero {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-block: 14vh 8vh;
+  overflow: hidden;
+}
+
+/* WebGL / poster backdrop sits behind content */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-canvas);
+  background:
+    radial-gradient(60% 50% at 78% 18%, rgba(122, 162, 255, 0.16), transparent 70%),
+    radial-gradient(70% 60% at 18% 82%, rgba(94, 224, 176, 0.18), transparent 70%);
+}
+.backdrop::after {
+  /* vignette so text stays legible over the particle field */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    120% 90% at 50% 40%,
+    transparent 0%,
+    rgba(10, 11, 14, 0.55) 70%,
+    var(--bg) 100%
+  );
+}
+.poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.9;
+}
+
+.inner {
+  position: relative;
+  z-index: var(--z-content);
+}
+
+.eyebrow {
+  margin-bottom: clamp(1rem, 2vw, 1.6rem);
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+
+.name {
+  font-size: var(--fs-hero);
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+  font-weight: 400;
+  margin: 0;
+}
+.name .outline,
+.name .outline :global(.split-word) {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 1px var(--line-strong);
+}
+.name .outline {
+  display: block;
+}
+/* Solid fill — robust against split spans (gradient-clip won't reach children). */
+.name .fill {
+  display: block;
+  color: #f5f6f7;
+}
+.name .fill :global(.split-word) {
+  color: #f5f6f7;
+  -webkit-text-fill-color: #f5f6f7;
+}
+
+.tagline {
+  margin-top: clamp(1.25rem, 3vw, 2.25rem);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: var(--fs-lead);
+  color: var(--muted);
+  max-width: 28ch;
+}
+.tagline em {
+  font-family: var(--font-display);
+  font-style: italic;
+  color: var(--accent);
+}
+
+.lede {
+  margin-top: clamp(1.5rem, 3vw, 2rem);
+  max-width: 52ch;
+  color: var(--muted);
+  font-size: 1.02rem;
+}
+
+.scrollHint {
+  position: absolute;
+  bottom: clamp(1.5rem, 4vh, 3rem);
+  left: var(--gutter);
+  z-index: var(--z-content);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-dim);
+}
+.scrollHint .bar {
+  width: 46px;
+  height: 1px;
+  background: var(--line-strong);
+  position: relative;
+  overflow: hidden;
+}
+.scrollHint .bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform: translateX(-100%);
+  animation: sweep 2.4s var(--ease-in-out) infinite;
+}
+@keyframes sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  60%,
+  100% {
+    transform: translateX(100%);
+  }
+}

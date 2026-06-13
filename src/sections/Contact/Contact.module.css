@@ -1,0 +1,70 @@
+.contact {
+  border-top: 1px solid var(--line);
+  padding-block: clamp(5rem, 12vw, 10rem);
+  text-align: center;
+}
+.avail {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  margin-bottom: clamp(1.5rem, 4vw, 2.5rem);
+}
+.avail .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  animation: blink 2s ease-in-out infinite;
+}
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.lead {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+.email {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 9vw, 6rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  background: linear-gradient(120deg, #fff, var(--accent) 140%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transition: opacity 0.3s;
+}
+.email:hover {
+  opacity: 0.85;
+}
+.links {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  margin-top: clamp(2rem, 5vw, 3.5rem);
+}
+.links a {
+  color: var(--muted);
+  font-size: 1rem;
+  position: relative;
+  transition: color 0.3s;
+}
+.links a:hover {
+  color: var(--accent);
+}

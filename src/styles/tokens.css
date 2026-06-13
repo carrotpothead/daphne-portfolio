@@ -1,0 +1,50 @@
+:root {
+  /* Color */
+  --bg: #0a0b0e;
+  --bg-2: #101217;
+  --card: #14161b;
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --text: #f3f4f6;
+  --muted: #9aa0aa;
+  --muted-dim: #6b7079;
+
+  /* Accents — mint primary, periwinkle secondary, warm tertiary (nods to misemash) */
+  --accent: #5ee0b0;
+  --accent-2: #7aa2ff;
+  --warm: #e8a657;
+
+  /* Type */
+  --font-display: 'Fraunces', 'Times New Roman', serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Fluid type scale */
+  --fs-hero: clamp(3rem, 12vw, 9.5rem);
+  --fs-h2: clamp(2rem, 5.5vw, 4.25rem);
+  --fs-h3: clamp(1.35rem, 2.6vw, 2rem);
+  --fs-lead: clamp(1.05rem, 2.1vw, 1.4rem);
+  --fs-body: 1rem;
+  --fs-eyebrow: 0.78rem;
+
+  /* Spacing */
+  --space-section: clamp(6rem, 14vw, 12rem);
+  --gutter: clamp(1.25rem, 5vw, 4rem);
+  --maxw: 1280px;
+  --maxw-text: 760px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur: 0.7s;
+
+  /* Radius */
+  --radius: 16px;
+  --radius-lg: 22px;
+
+  /* Layering */
+  --z-canvas: 0;
+  --z-content: 1;
+  --z-nav: 50;
+  --z-overlay: 100;
+  --z-preloader: 200;
+}
