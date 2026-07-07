@@ -1,66 +1,122 @@
-import { Suspense, lazy } from 'react'
-import { SplitReveal } from '@/components/primitives/SplitReveal'
+import { Suspense, lazy, useRef } from 'react'
+import { useGSAP } from '@gsap/react'
+import { gsap } from '@/lib/gsap'
+import { useLenis } from '@/lib/lenis'
 import { site } from '@/data/site'
-import { useReducedMotion, isLowPowerDevice } from '@/lib/useMediaQuery'
+import { SplitReveal } from '@/components/primitives/SplitReveal'
+import { Magnet } from '@/components/primitives/Magnet'
+import { MagneticButton } from '@/components/layout/MagneticButton'
+import { useReducedMotion, useIsMobile, isLowPowerDevice } from '@/lib/useMediaQuery'
 import styles from './Hero.module.css'
 
-// Heavy WebGL scene is its own chunk, only imported when we actually want it.
-const HeroCanvas = lazy(() =>
-  import('@/components/webgl/HeroCanvas').then((m) => ({ default: m.HeroCanvas })),
+const HeroField = lazy(() =>
+  import('@/components/webgl/HeroField').then((m) => ({ default: m.HeroField })),
 )
 
 export function Hero() {
+  const { scrollTo } = useLenis()
   const reduced = useReducedMotion()
+  const mobile = useIsMobile()
   const wantsWebGL = !reduced && !isLowPowerDevice()
+  const root = useRef<HTMLElement>(null)
+
+  useGSAP(
+    () => {
+      if (reduced || !root.current) return
+
+      gsap.from(`.${styles.canvas}`, { opacity: 0, duration: 1.3, delay: 0.35, ease: 'power2.out' })
+      gsap.from(`.${styles.rise}`, {
+        opacity: 0,
+        y: 26,
+        duration: 0.9,
+        ease: 'power3.out',
+        stagger: 0.09,
+        delay: 0.5,
+      })
+      // the character walks up from the bottom edge
+      gsap.from(`.${styles.figure}`, {
+        yPercent: 26,
+        opacity: 0,
+        duration: 1.3,
+        ease: 'power4.out',
+        delay: 0.75,
+      })
+
+      // scroll parallax — desktop only (mobile lays the figure out in flow)
+      if (!mobile) {
+        gsap.to(`.${styles.title}`, {
+          yPercent: -16,
+          ease: 'none',
+          scrollTrigger: { trigger: root.current, start: 'top top', end: 'bottom top', scrub: true },
+        })
+        gsap.to(`.${styles.figure}`, {
+          yPercent: 12,
+          ease: 'none',
+          scrollTrigger: { trigger: root.current, start: 'top top', end: 'bottom top', scrub: true },
+        })
+      }
+      gsap.to(`.${styles.canvas}`, {
+        opacity: 0,
+        ease: 'none',
+        scrollTrigger: { trigger: root.current, start: '55% top', end: 'bottom top', scrub: true },
+      })
+    },
+    { scope: root, dependencies: [reduced, mobile] },
+  )
 
   return (
-    <header id="top" className={styles.hero}>
-      <div className={styles.backdrop} aria-hidden="true">
-        {wantsWebGL ? (
+    <header id="top" ref={root} className={styles.hero} data-nav="light">
+      {wantsWebGL && (
+        <div className={styles.canvas} aria-hidden="true">
           <Suspense fallback={null}>
-            <HeroCanvas />
+            <HeroField />
           </Suspense>
-        ) : (
-          <img
-            className={styles.poster}
-            src="/images/hero-poster.jpg"
-            alt=""
-            aria-hidden="true"
-            onError={(e) => {
-              ;(e.currentTarget as HTMLImageElement).style.display = 'none'
-            }}
-          />
-        )}
+        </div>
+      )}
+
+      <div className={styles.eyebrowRow}>
+        <div className={`arc-eyebrow ${styles.rise}`}>
+          portfolio <span className="sl">/</span> daphne.archive
+        </div>
+        <div className={`arc-eyebrow ${styles.rise} ${styles.eyebrowRight}`}>
+          singapore <span className="sl">/</span> open_to_work
+        </div>
       </div>
 
-      <div className={`container ${styles.inner}`}>
-        <p className={`eyebrow ${styles.eyebrow}`}>
-          <span className={styles.dot} aria-hidden="true" />
-          {site.role}
-        </p>
-
-        <h1 className={styles.name}>
-          <SplitReveal as="span" className={styles.fill} text="Daphne" type="chars" trigger={false} />
-          <SplitReveal
-            as="span"
-            className={styles.outline}
-            text="Kam"
-            type="chars"
-            trigger={false}
-            delay={0.15}
-          />
-        </h1>
-
-        <p className={styles.tagline}>
-          I build the things I <em>market</em>.
-        </p>
-
-        <p className={styles.lede}>{site.intro}</p>
+      <div className={styles.title}>
+        <SplitReveal
+          as="h1"
+          className={styles.name}
+          text="Daphne"
+          type="chars"
+          trigger={false}
+          stagger={0.045}
+          delay={0.3}
+        />
       </div>
 
-      <div className={styles.scrollHint} aria-hidden="true">
-        <span className={styles.bar} />
-        Scroll
+      <Magnet className={styles.figure} strength={5} radius={200}>
+        <img
+          src="/images/character.png"
+          alt="Illustrated character of Daphne, holding a laptop"
+          draggable={false}
+        />
+      </Magnet>
+
+      <div className={styles.bottomBar}>
+        <p className={`${styles.tagline} ${styles.rise}`}>
+          {site.role} — I orchestrate agents, models &amp; pipelines to ship games, apps and
+          campaigns
+        </p>
+        <div className={`${styles.ctas} ${styles.rise}`}>
+          <MagneticButton
+            className={styles.cta}
+            onClick={() => scrollTo('#work')}
+            ariaLabel="Open the files"
+          >
+            open the files ↓
+          </MagneticButton>
+        </div>
       </div>
     </header>
   )

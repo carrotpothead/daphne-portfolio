@@ -1,70 +1,118 @@
-.contact {
-  border-top: 1px solid var(--line);
-  padding-block: clamp(5rem, 12vw, 10rem);
-  text-align: center;
+/* periwinkle finale sheet */
+.sheetPeri {
+  background: var(--peri);
+  color: #fff;
+  z-index: 6;
+  padding-bottom: 2.2rem;
 }
+.tabPeri {
+  background: var(--peri);
+  color: #fff;
+}
+.tabPeri .n {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(1.5rem, 5vw, 4rem);
+}
+.text {
+  max-width: 780px;
+}
+
 .avail {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-  border: 1px solid var(--line);
-  padding: 0.5rem 1rem;
-  border-radius: 999px;
-  margin-bottom: clamp(1.5rem, 4vw, 2.5rem);
+  gap: 0.55em;
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
+  color: rgba(255, 255, 255, 0.85);
 }
-.avail .dot {
-  width: 8px;
-  height: 8px;
+.dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 10px var(--accent);
-  animation: blink 2s ease-in-out infinite;
+  background: var(--mint, #5ee0b0);
+  box-shadow: 0 0 0 3px rgba(94, 224, 176, 0.28);
 }
-@keyframes blink {
-  0%,
-  100% {
-    opacity: 0.5;
-  }
-  50% {
-    opacity: 1;
-  }
+
+.title {
+  color: #fff;
+  font-size: clamp(2.2rem, 6.4vw, 5rem);
+  margin-top: 1.1rem;
 }
-.lead {
-  font-family: var(--font-display);
-  font-size: clamp(1.5rem, 4vw, 2.5rem);
-  color: var(--muted);
-  margin-bottom: 0.5rem;
+.hl {
+  color: var(--ink);
 }
-.email {
-  display: inline-block;
-  font-family: var(--font-display);
-  font-size: clamp(2.2rem, 9vw, 6rem);
-  line-height: 1;
-  letter-spacing: -0.03em;
-  color: var(--text);
-  background: linear-gradient(120deg, #fff, var(--accent) 140%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  transition: opacity 0.3s;
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  margin-top: 1.9rem;
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--peri-dk);
+  background: #fff;
+  border-radius: var(--radius-pill);
+  padding: 0.85em 1.8em;
+  transition: transform 0.25s var(--ease-out), box-shadow 0.25s;
 }
-.email:hover {
-  opacity: 0.85;
+.cta:hover {
+  box-shadow: 0 12px 30px rgba(20, 24, 48, 0.25);
 }
-.links {
+
+.socials {
   display: flex;
-  gap: 2rem;
-  justify-content: center;
-  margin-top: clamp(2rem, 5vw, 3.5rem);
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  margin-top: 1.7rem;
 }
-.links a {
-  color: var(--muted);
-  font-size: 1rem;
-  position: relative;
-  transition: color 0.3s;
+.social {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.85);
 }
-.links a:hover {
-  color: var(--accent);
+.social:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.photo {
+  width: clamp(180px, 21vw, 260px);
+  transform: rotate(-3deg);
+  flex: none;
+}
+
+/* footer strip merged into the sheet */
+.foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: clamp(3rem, 7vw, 5.5rem);
+  padding-top: 1.2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.28);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+@media (max-width: 760px) {
+  .inner {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    gap: 2rem;
+  }
+  .photo {
+    align-self: center;
+    width: clamp(180px, 46vw, 230px);
+  }
+  .text {
+    max-width: none;
+  }
 }

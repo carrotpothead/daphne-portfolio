@@ -78,7 +78,7 @@ Marketing strategist who builds. I orchestrate AI — Claude Code, Higgsfield, W
 Mobile-first kitchen-ops app (recipe vault, meal planning, smart grocery lists) — "the missing layer between food you discover and food you actually cook." My own product: concept, design, copy, and build, orchestrating AI (Claude Code, Higgsfield, Weavy). Target launch: 2026.
 
 **Space Vibes** — *spacevibes.vercel.app*
-Playable browser arcade game shipped as my entry to **Good Vibes Club's vibeathon** — vibe-coded via their CLI by orchestrating AI (Claude Code). The game concept and IP are GVC's; I took it from brief to a deployed, playable game (power-ups, lives, live leaderboard).
+Playable browser arcade game shipped as my entry to **Good Vibes Club's vibeathon** — vibe-coded via their CLI by orchestrating AI (Claude Code), then iterated and debugged to a stable production release (power-ups, lives, live leaderboard, iOS crash fixes). The concept and IP are GVC's; the build, ship, and fixes are mine.
 
 ---
 

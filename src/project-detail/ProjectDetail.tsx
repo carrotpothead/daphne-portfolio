@@ -51,9 +51,10 @@ export function ProjectDetail() {
   return (
     <motion.div
       className={styles.overlay}
+      data-lenis-prevent
       role="dialog"
       aria-modal="true"
-      aria-label={`${project.title} — project detail`}
+      aria-label={`${project.title} project detail`}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -76,21 +77,7 @@ export function ProjectDetail() {
           <p className={styles.kicker}>{project.kicker}</p>
           <h1 className={styles.title}>{project.title}</h1>
           <p className={styles.summary}>{project.summary}</p>
-          <p className={styles.role}>
-            <b>My role:</b> {project.role}
-          </p>
         </div>
-
-        {project.metrics && (
-          <div className={styles.metrics}>
-            {project.metrics.map((m) => (
-              <div key={m.label} className={styles.metric}>
-                <div className={styles.mv}>{m.value}</div>
-                <div className={styles.ml}>{m.label}</div>
-              </div>
-            ))}
-          </div>
-        )}
 
         {/* Playable / preview embed (click-to-load) */}
         {(project.embedUrl || project.poster) && (
@@ -99,7 +86,7 @@ export function ProjectDetail() {
               {playing && project.embedUrl ? (
                 <iframe
                   src={project.embedUrl}
-                  title={`${project.title} — playable`}
+                  title={`${project.title} playable`}
                   loading="lazy"
                   allow="fullscreen; autoplay"
                 />

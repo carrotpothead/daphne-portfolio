@@ -1,98 +1,129 @@
-.about {
-  border-top: 1px solid var(--line);
-  position: relative;
-  overflow: hidden;
+/* cream folder sheet */
+.sheetCream {
+  background: var(--bg);
+  z-index: 4;
 }
-.sphere {
+.tabCream {
+  background: var(--bg);
+  color: var(--ink);
+}
+.tabCream .n {
+  color: var(--peri);
+}
+
+.inner {
+  position: relative;
+}
+
+/* character polaroid layered top-right */
+.photo {
   position: absolute;
-  top: 50%;
-  right: -8%;
-  transform: translateY(-50%);
-  width: min(46vw, 560px);
-  height: min(46vw, 560px);
-  z-index: 0;
-  opacity: 0.55;
-  pointer-events: none;
+  top: 0;
+  right: clamp(0rem, 2vw, 1.8rem);
+  width: clamp(150px, 20vw, 220px);
+  z-index: 3;
+  transform: rotate(4deg);
 }
-@media (max-width: 860px) {
-  .sphere {
-    top: 0;
-    right: -25%;
-    opacity: 0.3;
-  }
-}
-.about .container {
-  position: relative;
-  z-index: 1;
-}
-.grid {
-  display: grid;
-  grid-template-columns: 1.3fr 1fr;
-  gap: clamp(2rem, 6vw, 5rem);
-  align-items: start;
-}
-@media (max-width: 860px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-}
+
 .lead {
   font-family: var(--font-display);
-  font-size: var(--fs-h3);
-  line-height: 1.35;
-  letter-spacing: -0.01em;
-  color: var(--text);
+  font-weight: 700;
+  font-size: clamp(1.7rem, 4.2vw, 3.1rem);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  max-width: 820px;
+  padding-right: clamp(0px, 15vw, 200px);
 }
-.lead em {
-  font-style: italic;
-  color: var(--accent);
+.hl {
+  color: var(--peri);
 }
-.body {
-  margin-top: 1.5rem;
+.belief {
+  margin-top: clamp(1.3rem, 3vw, 2rem);
+  font-size: clamp(1.05rem, 1.9vw, 1.4rem);
+  line-height: 1.6;
+  font-weight: 500;
+  color: var(--ink);
+  max-width: 720px;
+}
+
+/* background as release notes — a mini drawer of career versions */
+.story {
+  margin-top: clamp(1.8rem, 4vw, 2.8rem);
+  max-width: 660px;
+}
+.storyLabel {
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
   color: var(--muted);
-  max-width: 52ch;
+  display: block;
+  margin-bottom: 1.6rem; /* room for the first tab to rise above its folder */
 }
-.location {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 1.75rem;
-  font-size: 0.9rem;
-  color: var(--muted);
+.changelog {
+  list-style: none;
+  margin-top: 0.9rem;
+  border-left: 1.4px solid var(--chip-bd);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding-left: 1.1rem;
 }
-.location .pin {
+.release {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  position: relative;
+}
+.release::before {
+  content: '';
+  position: absolute;
+  left: calc(-1.1rem - 4.2px);
+  top: 0.42em;
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--peri);
+}
+.version {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--peri-dk);
+}
+.releaseName {
+  font-weight: 400;
+  color: var(--muted);
+}
+.releaseLine {
+  font-size: 0.93rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.release:last-child .releaseLine {
+  color: var(--ink);
 }
 
-.currently {
-  border-top: 1px solid var(--line);
-}
-.currentlyHead {
-  font-size: 0.78rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--muted-dim);
-  padding-top: 1.25rem;
-  margin-bottom: 0.5rem;
-}
-.row {
+.filed {
+  margin-top: clamp(1.3rem, 3vw, 1.9rem);
   display: flex;
-  justify-content: space-between;
   align-items: baseline;
-  gap: 1rem;
-  padding: 0.9rem 0;
-  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+  gap: 0.7rem 0.9rem;
 }
-.key {
-  color: var(--muted-dim);
-  font-size: 0.85rem;
+.filedLabel {
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
+  color: var(--muted);
 }
-.value {
-  font-family: var(--font-display);
-  font-size: 1.05rem;
-  text-align: right;
-  color: var(--text);
+
+@media (max-width: 760px) {
+  .photo {
+    position: static;
+    width: clamp(150px, 40vw, 190px);
+    margin: 0 auto 1.4rem;
+    transform: rotate(3deg);
+  }
+  .lead {
+    padding-right: 0;
+  }
 }

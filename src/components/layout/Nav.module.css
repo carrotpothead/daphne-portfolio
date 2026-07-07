@@ -2,68 +2,67 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
+  right: 0;
   z-index: var(--z-nav);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: clamp(1rem, 2.4vw, 1.6rem) var(--gutter);
-  mix-blend-mode: difference;
-  pointer-events: none;
+  gap: 1rem;
+  padding: 0.9rem clamp(1.1rem, 5vw, 2.6rem);
+  transition: background 0.3s, border-color 0.3s, backdrop-filter 0.3s;
+  border-bottom: 1px solid transparent;
+}
+.nav.scrolled {
+  background: rgba(244, 241, 234, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom-color: var(--line);
 }
 
-.nav > * {
-  pointer-events: auto;
+.brand {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -0.01em;
 }
-
-.mark {
-  font-family: var(--font-display);
-  font-size: 1.4rem;
-  letter-spacing: -0.03em;
-  color: #fff;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.15em;
-}
-.mark .dot {
-  color: var(--accent);
+.brand .ext {
+  color: var(--muted);
 }
 
 .links {
   display: flex;
   align-items: center;
-  gap: clamp(1rem, 2.5vw, 2.2rem);
+  gap: clamp(0.6rem, 2vw, 1.4rem);
 }
-
 .link {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #fff;
-  position: relative;
-  padding: 0.3rem 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45em;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--ink);
+  transition: color 0.2s;
 }
-.link::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  height: 1px;
-  background: currentColor;
-  transform: scaleX(0);
-  transform-origin: right;
-  transition: transform 0.4s var(--ease-out);
+.link .n {
+  color: var(--peri);
+  font-weight: 700;
 }
-.link:hover::after {
-  transform: scaleX(1);
-  transform-origin: left;
+.link:hover {
+  color: var(--peri-dk);
+}
+.link:hover .label {
+  text-decoration: underline;
 }
 
 @media (max-width: 640px) {
-  .links {
-    gap: 1rem;
-  }
-  .hideMobile {
+  .brand .ext {
     display: none;
+  }
+  .link .label {
+    display: none;
+  }
+  .links {
+    gap: 0.85rem;
   }
 }

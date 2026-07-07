@@ -1,67 +1,72 @@
 export type Project = {
   id: string
   title: string
-  kicker: string // short context label
+  kicker: string
   year: string
   status: 'Live' | 'In progress' | 'Live soon'
+  emoji: string
   summary: string
-  // honest role framing — what Daphne actually did
-  role: string
   stack: string[]
-  liveUrl?: string // public link, if any
-  embedUrl?: string // iframe (click-to-load) if playable
-  poster: string // hero image in /public
-  // longer detail copy (project-detail overlay)
+  liveUrl?: string
+  embedUrl?: string
+  poster?: string
+  video?: string // looping gameplay/preview clip; falls back to poster
+  ascii?: string // mono art card instead of an image
   detail: string[]
-  metrics?: { label: string; value: string }[]
 }
 
 export const projects: Project[] = [
   {
     id: 'misemash',
     title: 'Misemash',
-    kicker: 'Product — designed & built by me',
+    kicker: 'A kitchen-ops app.',
     year: '2026',
     status: 'Live soon',
-    summary:
-      'A mobile-first kitchen-ops app: every recipe you’ve saved, one plan for the week, one list for the shop. The missing layer between food you discover and food you actually cook.',
-    role: 'Concept, product design, copy, and build — orchestrating AI end-to-end.',
+    emoji: '🍳',
+    summary: 'Every recipe you’ve saved, one plan for the week, one list for the shop.',
     stack: ['Next.js', 'Claude Code', 'Higgsfield', 'Weavy'],
     poster: '/images/projects/misemash-tall.png',
     detail: [
-      'Misemash is the build I own outright — concept, product design, voice, and code.',
-      'It solves a real gap: people save endless recipes but still stare at the fridge at 7pm. Misemash turns a saved-recipe pile into a weekly plan and a single shopping list — “Plan. Cook. Tame the chaos.”',
-      'Built mobile-first with an editorial, food-forward art direction, generated and assembled by orchestrating AI tools rather than a full engineering team.',
-    ],
-    metrics: [
-      { label: 'Surface', value: 'Mobile-first web' },
-      { label: 'Role', value: 'Solo, AI-orchestrated' },
-      { label: 'Stage', value: 'Prototype → launch 2026' },
+      'Misemash turns your chaos of saved recipes into dinner you’ll actually cook. Save from anywhere, let it build your week, and walk into the shop with one tidy list.',
+      'Designed, written and built by orchestrating AI — Claude Code for the product, Higgsfield for the visual pipeline. It’s the missing layer between food you pin and food you make. Mobile-first, live in 2026.',
     ],
   },
   {
     id: 'space-vibes',
     title: 'Space Vibes',
-    kicker: 'Good Vibes Club — Vibeathon entry',
+    kicker: 'A browser arcade game.',
     year: '2025',
     status: 'Live',
-    summary:
-      'A browser arcade game — fly, collect vibes, convert the bad vibers, climb the leaderboard. Shipped as my entry to Good Vibes Club’s vibeathon.',
-    role:
-      'Vibe-coded via Good Vibes Club’s CLI by orchestrating AI. The game concept and IP are GVC’s; I built and shipped this playable entry.',
-    stack: ['Next.js', 'Claude Code (CLI)', 'Vercel'],
+    emoji: '🚀',
+    summary: 'Fly, collect good vibes, convert the bad ones, climb the leaderboard.',
+    stack: ['Next.js', 'Claude Code', 'Vercel'],
     liveUrl: 'https://spacevibes.vercel.app/',
     embedUrl: 'https://spacevibes.vercel.app/',
     poster: '/images/projects/spacevibes-thumb.png',
+    video: '/videos/space-vibes.mp4',
     detail: [
-      'Space Vibes was my entry to the Good Vibes Club vibeathon — a build sprint where you ship a playable game by orchestrating AI from a CLI.',
-      'The IP and concept belong to Good Vibes Club. What I did: took it from idea to a deployed, playable arcade game — flight controls, a power-up system, lives, and a live leaderboard.',
-      'It’s proof of the core skill: hand me a creative brief and AI tooling, and I’ll ship something real and fun that people can actually play.',
+      'Pilot through space, scoop up good vibes, flip the bad vibers to your side, dodge asteroids, and fight for the top of the live leaderboard.',
+      'Vibe-coded for the Good Vibes Club vibeathon via their CLI and debugged to a stable production release. Easy to start, hard to put down. Beat my score.',
     ],
-    metrics: [
-      { label: 'Event', value: 'GVC Vibeathon' },
-      { label: 'Built via', value: 'CLI + AI orchestration' },
-      { label: 'State', value: 'Live & playable' },
+  },
+  {
+    id: 'sir-leaps-a-lot',
+    title: 'Sir Leaps-a-Lot',
+    kicker: 'A macOS desktop pet with agency.',
+    year: '2026',
+    status: 'In progress',
+    emoji: '🐈',
+    summary: 'A cat that lives on your desktop, watches your windows, and leaps between them.',
+    stack: ['Swift', 'AppKit', 'Claude Code'],
+    ascii: String.raw`      /\_/\        *leap*
+     ( o.o )
+      > ^ <
+   ______________
+  |  window.app  |
+  |______________|`,
+    detail: [
+      'A native macOS desktop pet — a cat that perches on your real windows, auto-jumps between them, and (next) uses the Accessibility API as its eyes.',
+      'Written in Swift and AppKit, a stack I’d never touched — shipped anyway by directing Claude Code through architecture, App Nap traps and window-server quirks. That’s the point of the file.',
     ],
   },
 ]

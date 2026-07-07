@@ -1,17 +1,25 @@
+import { useEffect, useState } from 'react'
 import { useLenis } from '@/lib/lenis'
-import { site } from '@/data/site'
 import { SoundToggle } from './SoundToggle'
 import styles from './Nav.module.css'
 
 const links = [
-  { label: 'Work', target: '#work' },
-  { label: 'Creative', target: '#creative' },
-  { label: 'About', target: '#about' },
-  { label: 'Contact', target: '#contact' },
+  { n: '001', label: 'builds', target: '#work' },
+  { n: '002', label: 'stack', target: '#stack' },
+  { n: '003', label: 'about', target: '#about' },
+  { n: '004', label: 'contact', target: '#contact' },
 ]
 
 export function Nav() {
   const { scrollTo } = useLenis()
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 40)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   const go = (target: string) => (e: React.MouseEvent) => {
     e.preventDefault()
@@ -19,29 +27,17 @@ export function Nav() {
   }
 
   return (
-    <nav className={styles.nav} aria-label="Primary">
-      <a className={styles.mark} href="#top" onClick={go('#top')}>
-        DK<span className={styles.dot}>.</span>
+    <nav className={`${styles.nav} ${scrolled ? styles.scrolled : ''}`} aria-label="Primary">
+      <a className={styles.brand} href="#top" onClick={go('#top')}>
+        daphne<span className={styles.ext}>.archive</span>
       </a>
       <div className={styles.links}>
         {links.map((l) => (
-          <a
-            key={l.target}
-            className={`${styles.link} ${l.label === 'Creative' ? styles.hideMobile : ''}`}
-            href={l.target}
-            onClick={go(l.target)}
-          >
-            {l.label}
+          <a key={l.target} className={styles.link} href={l.target} onClick={go(l.target)}>
+            <span className={styles.n}>{l.n}</span>
+            <span className={styles.label}>{l.label}</span>
           </a>
         ))}
-        <a
-          className={`${styles.link} ${styles.hideMobile}`}
-          href={site.resume}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Résumé
-        </a>
         <SoundToggle />
       </div>
     </nav>

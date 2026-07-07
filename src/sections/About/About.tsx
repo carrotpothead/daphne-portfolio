@@ -1,58 +1,64 @@
-import { Suspense, lazy } from 'react'
 import { Reveal } from '@/components/primitives/Reveal'
+import { AnimatedChars } from '@/components/primitives/AnimatedChars'
+import { Polaroid } from '@/components/layout/Polaroid'
+import { Drawer } from '@/components/drawer/Drawer'
+import type { DrawerEntry } from '@/data/drawer'
 import { site } from '@/data/site'
-import { useReducedMotion, isLowPowerDevice } from '@/lib/useMediaQuery'
 import styles from './About.module.css'
 
-const AboutSphere = lazy(() =>
-  import('@/components/webgl/AboutSphere').then((m) => ({ default: m.AboutSphere })),
-)
+const asTag = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+
+/* the career changelog, filed as pullable versions — tabs staircase left→right with the versions */
+const TABX = [0.03, 0.21, 0.39, 0.57, 0.74]
+const storyFiles: DrawerEntry[] = site.story.map((s, i) => ({
+  kind: 'file',
+  n: s.v,
+  label: s.name,
+  tabX: TABX[i % TABX.length],
+  title: `${s.v} — ${s.name}`,
+  body: s.line,
+}))
 
 export function About() {
-  const reduced = useReducedMotion()
-  const wantsWebGL = !reduced && !isLowPowerDevice()
-
   return (
-    <section id="about" className={`section ${styles.about}`} aria-labelledby="about-title">
-      {wantsWebGL && (
-        <div className={styles.sphere}>
-          <Suspense fallback={null}>
-            <AboutSphere />
-          </Suspense>
-        </div>
-      )}
-      <div className="container">
-        <div className={styles.grid}>
-          <div>
-            <p className="eyebrow" id="about-title">
-              About
-            </p>
-            <Reveal>
-              <p className={styles.lead} style={{ marginTop: '1.25rem' }}>
-                I’m a marketer who got tired of waiting on the build. So I learned to
-                ship it myself — <em>orchestrating AI</em> instead of managing a backlog.
-              </p>
-              <p className={styles.body}>
-                Six years across crypto, gaming, and Big Tech — Crypto.com, Meta, gumi —
-                taught me how to launch things people care about. Now I pair that with
-                Claude Code, Higgsfield, and Weavy to take ideas from brief to live in
-                days, not quarters. Marketing instinct, builder’s hands.
-              </p>
-              <span className={styles.location}>
-                <span className={styles.pin} aria-hidden="true" />
-                {site.location}
-              </span>
-            </Reveal>
-          </div>
+    <section id="about" className={`sheet ${styles.sheetCream}`} aria-labelledby="about-title">
+      <span className={`sheet-tab ${styles.tabCream}`}>
+        <span className="n">003</span> about
+      </span>
 
-          <Reveal className={styles.currently}>
-            <p className={styles.currentlyHead}>Currently</p>
-            {site.currently.map((c) => (
-              <div key={c.key} className={styles.row}>
-                <span className={styles.key}>{c.key}</span>
-                <span className={styles.value}>{c.value}</span>
-              </div>
-            ))}
+      <div className="container">
+        <div className={styles.inner}>
+          <Polaroid
+            className={styles.photo}
+            src="/images/character-about.png"
+            alt="Illustrated character of Daphne, thinking"
+          />
+
+          <Reveal>
+            <h2 id="about-title" className={styles.lead}>
+              A marketer with AI for a sidekick, dreaming up the impossible and{' '}
+              <span className={styles.hl}>shipping the fun</span>.
+            </h2>
+          </Reveal>
+
+          <AnimatedChars text={site.belief} className={styles.belief} />
+
+          <Reveal>
+            <div className={styles.story}>
+              <span className={styles.storyLabel}>{site.storyLabel}</span>
+              <Drawer entries={storyFiles} compact />
+            </div>
+
+            <div className={styles.filed}>
+              <span className={styles.filedLabel}>filed_under</span>
+              <ul className="tags">
+                {site.capabilities.map((cap) => (
+                  <li key={cap} className="tag">
+                    {asTag(cap)}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </Reveal>
         </div>
       </div>

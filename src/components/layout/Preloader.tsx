@@ -58,7 +58,7 @@ export function Preloader({ onDone }: { onDone: () => void }) {
         </span>
       </span>
       <div className={styles.meta}>
-        <span className={styles.label}>Creative Technologist</span>
+        <span className={styles.label}>indexing daphne.archive</span>
         <span className={styles.counter}>{count}</span>
       </div>
       <div className={styles.bar} />

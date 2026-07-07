@@ -4,7 +4,7 @@
   justify-content: center;
   width: 34px;
   height: 34px;
-  color: #fff;
+  color: var(--ink);
 }
 .bars {
   display: flex;
