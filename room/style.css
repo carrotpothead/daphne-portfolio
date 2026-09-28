@@ -274,7 +274,6 @@ blockquote { margin: 16px 0 0; padding-left: 14px; border-left: 3px solid #f47b2
   .dz-body, .spread { grid-template-columns: 1fr; }
   .photo { width: 62%; }
   .stamp { right: 18px; bottom: 26px; font-size: 20px; }
-  .sticky { display: none; }
   .polaroid { float: none; width: 100%; margin: 14px 0; }
   .pf h2 { font-size: 34px; }
 }
@@ -351,6 +350,8 @@ blockquote { margin: 16px 0 0; padding-left: 14px; border-left: 3px solid #f47b2
 .adopt li + li { margin-top: 4px; }
 .ad-care { font-size: 11px; color: #8b8170; margin-bottom: 10px; }
 .adopt .ad-get { display: inline-block; text-decoration: none; }
+.ad-follow { margin-top: 10px; padding-top: 8px; border-top: 1px dashed #d9cfb8; font-size: 11px; color: #8b8170; }
+.ad-follow a { color: #c2410c; }
 .ad-try { display: block; margin-top: 8px; padding: 0; border: 0; background: none; font: inherit; font-size: 11px; color: #6b5a3a; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 @media (max-width: 640px) { .adopt { bottom: 64px; right: 12px; } }
 

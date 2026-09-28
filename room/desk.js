@@ -220,6 +220,7 @@ const FOLDERS = {
     ],
     extras: [
       { type: 'tag', text: 'adopt carroto →', action: 'adopt', dx: 0.04, dy: 0.94, rot: -3 }, // opens the personal drawer's adoption papers
+      { type: 'tag', text: 'his adventures: @agentcarroto ↗', href: 'https://www.instagram.com/agentcarroto/', dx: -0.6, dy: 0.28, rot: 4 },
       { type: 'note', text: 'the one you can adopt is plain carroto. the glasses stay with me.', dx: 0.62, dy: 0.86, rot: -5 },
       {
         type: 'receipt', title: 'on his desk', clip: true, dx: 0.8, dy: 0.02, rot: 7,

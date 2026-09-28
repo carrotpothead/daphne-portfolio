@@ -917,7 +917,8 @@ adoptEl.innerHTML = `
   </ol>
   <p class="ad-care">for macs. chatting with him needs claude code; everything else just works.</p>
   <a class="act ad-get" href="./assets/carroto-for-mac.zip" download>download carroto →</a>
-  <button class="ad-try" type="button">or try him in your browser first</button>`
+  <button class="ad-try" type="button">or try him in your browser first</button>
+  <p class="ad-follow">follow his adventures: <a href="https://www.instagram.com/agentcarroto/" target="_blank" rel="noopener">@agentcarroto ↗</a></p>`
 document.body.appendChild(adoptEl)
 adoptEl.querySelector('.ad-get').addEventListener('click', () => say('take care of him.', { mood: 'happy', hold: 1600 }))
 // the quick option: a carrot in a little floating browser window, no download
@@ -2345,7 +2346,7 @@ const TRICKS = {
 // the standing loop that plays between walks; 12s so breathing and leaf sway wrap round cleanly
 const IDLE_LOOP = 12
 // short clips the dock app plays on cue: lunch alarm, nap (doze / sleep loop / wake), held up (dangle loop / land)
-const CLIPS = { rick: 0.1, lunch: 6.5, doze: 4.8, sleep: 6, wake: 2.4, dangle: 2, land: 1.4, focusin: 1.2, focus: 6, focusout: 2.4, eat: 6, cheer: 2.4 }
+const CLIPS = { pfp: 0.1, rick: 0.1, lunch: 6.5, doze: 4.8, sleep: 6, wake: 2.4, dangle: 2, land: 1.4, focusin: 1.2, focus: 6, focusout: 2.4, eat: 6, cheer: 2.4 }
 const REC = { fps: 24, dur: TRICKS[RENDER]?.dur ?? CLIPS[RENDER] ?? (RENDER === 'idle' ? IDLE_LOOP : 10), warm: 2, n: 0, phase: 0, speed: 0, started: false }
 const potPop = new Spring(0, 120, 11)
 const clockProp = new THREE.Group()
@@ -2500,8 +2501,11 @@ if (RENDER) {
   Object.assign(story, { introduced: true, revealed: true, revealAt: -60, flick: true, busy: true })
   state.sound = false
   renderer.setPixelRatio(1)
-  renderer.setSize(1080, 1920, false)
-  camera.aspect = 1080 / 1920
+  // ?render=pfp: a square, right-up-to-the-lens close-up for a profile picture
+  const square = RENDER === 'pfp'
+  renderer.setSize(1080, square ? 1080 : 1920, false)
+  camera.aspect = square ? 1 : 1080 / 1920
+  if (square) camera.fov = 44
   camera.updateProjectionMatrix()
   mood('happy')
 }
@@ -2599,6 +2603,15 @@ function renderClip(name, u, dt) {
   torso.rotation.y = 0
   const ahead = carrot.localToWorld(new V3(0.2, 1.7, 3))
   lookOverride = ahead; lookUntil = Infinity
+  if (name === 'pfp') {
+    // leaning into the lens: face-on, wide eyes, a little head tilt
+    carrot.rotation.y = 0
+    torso.rotation.set(0.14, 0, -0.08)
+    setMood('happy'); lidOpen = -1.55; nextBlink = Infinity; blinkT = -1
+    lookOverride = camera.position.clone(); lookUntil = Infinity
+    pose('rest')
+    return
+  }
   if (name === 'rick') { pose('hips'); setMood('smug'); nextBlink = Infinity; blinkT = -1; lookOverride = camera.position.clone(); carrot.rotation.y = 0.35; return }
   if (name === 'lunch') {
     // pulls out an alarm clock, checks it, it rings, he jumps: lunch time
@@ -2750,6 +2763,7 @@ function renderClip(name, u, dt) {
   }
 }
 function renderShot() {
+  if (RENDER === 'pfp') { camera.position.set(0.04, BY + 1.45, 3.1); camera.lookAt(0, BY + 1.36, 0.1); carrot.position.set(0, 0, 0); return }
   if (['doze', 'sleep', 'wake'].includes(RENDER)) { camera.position.set(0, 1.9, 8.4); camera.lookAt(0, 1.24, 0); return }
   if (RENDER === 'cheer') { camera.position.set(0, 1.9, 8.4); camera.lookAt(0, 1.24, 0); carrot.position.x = 0; carrot.position.z = 0; return }
   if (RENDER !== 'dangle') carrot.position.y = 0
