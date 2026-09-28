@@ -1,6 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#0a0b0e"/>
-  <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle"
-    font-family="Georgia, 'Times New Roman', serif" font-size="34" fill="#f3f4f6">D</text>
-  <circle cx="46" cy="44" r="3.4" fill="#5ee0b0"/>
+  <rect width="64" height="64" rx="14" fill="#d6eee0"/>
+  <path d="M22 26 C22 20 42 20 42 26 L33 56 Q32 58 31 56 Z" fill="#f47b20"/>
+  <path d="M26 33 h9 M28 40 h6" stroke="#cc5510" stroke-width="2.2" stroke-linecap="round"/>
+  <ellipse cx="32" cy="19" rx="5" ry="4" fill="#45a852"/>
+  <path d="M32 18 C29 10 26 7 24 5 M32 18 C32 10 33 6 34 3 M32 18 C35 11 39 8 42 6" stroke="#45a852" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <rect x="26.5" y="21.5" width="11" height="3" rx="1.5" fill="#2338d4"/>
 </svg>

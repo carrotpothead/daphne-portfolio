@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.vercel
+
+# carroto download: hosted on GitHub at launch, not in this repo
+public/assets/carroto-for-mac.zip
+# private working notes and references
+CLAY.md
+DEPTH.md
+HERO.md
+SECTIONS.md
+references/
+_additional images/

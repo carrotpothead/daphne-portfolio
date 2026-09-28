@@ -1,38 +1,56 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>the carrot room</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#f5f2ea" />
-
-    <title>Daphne — AI-Native Creative Technologist</title>
-    <meta name="description" content="daphne.archive — a marketer who builds with AI. I orchestrate agents, models and pipelines to ship games, apps, characters and campaigns. $3M+ revenue, 450K+ community, and a live terminal to prove it." />
-
-    <!-- Open Graph -->
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="Daphne — AI-Native Creative Technologist" />
-    <meta property="og:description" content="A marketer who builds with AI. Games, apps, characters, campaigns — orchestrated end to end. This site included." />
-    <meta property="og:image" content="/og-image.png" />
-    <meta name="twitter:card" content="summary_large_image" />
-
-    <!-- Fonts -->
+    <meta name="description" content="a carrot guards a locked filing cabinet. play the game, earn the key, open the files." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
-
-    <!-- Preconnect to the embedded game origin -->
-    <link rel="preconnect" href="https://spacevibes.vercel.app" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=JetBrains+Mono:wght@400;500&family=Gochi+Hand&family=Special+Elite&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./room/style.css" />
+    <link rel="stylesheet" href="./room/desk.css" />
   </head>
-  <body>
-    <div id="root"></div>
-    <noscript>
-      <div style="padding:2rem;font-family:sans-serif;color:#1a1c20;background:#f5f2ea">
-        <h1>Daphne — Creative Technologist</h1>
-        <p>A marketer who builds. This portfolio is interactive and needs JavaScript.
-        Reach me at <a href="mailto:hello.daphnekam@gmail.com">hello.daphnekam@gmail.com</a>.</p>
+  <body class="dark">
+    <canvas id="c" aria-label="A carrot guarding a locked filing cabinet"></canvas>
+
+    <header class="top">
+      <div class="mark">carroto<span>*</span></div>
+      <button id="sound" class="pill" type="button">sound: on</button>
+    </header>
+
+    <div id="bubble" class="bubble" hidden aria-live="polite">
+      <div class="txt"></div>
+      <div class="acts"></div>
+    </div>
+
+    <div id="tv" class="tv" hidden>
+      <div class="tv-body" role="dialog" aria-label="Space Vibes">
+        <div class="tv-top">
+          <span class="tv-title">space vibes</span>
+          <span class="tv-goal"><span id="tvStatus">score <b id="tvScore">0</b> / <span id="tvNeed">10</span> for the key</span></span>
+          <button class="tv-take" type="button">🔑 key earned · take it →</button>
+          <button class="tv-x" type="button" aria-label="Close the game">✕</button>
+        </div>
+        <div class="tv-screen">
+          <iframe title="Space Vibes" allow="autoplay; gamepad" loading="eager"></iframe>
+        </div>
+        <div class="tv-foot" aria-hidden="true">
+          <span class="knob"></span><span class="knob knob-sm"></span>
+          <span class="grill"></span>
+        </div>
       </div>
-    </noscript>
-    <script type="module" src="/src/main.tsx"></script>
+    </div>
+
+    <button id="back" class="pill back" type="button" hidden>← back to the room</button>
+
+    <p class="hint">( click the carrot, or scroll )</p>
+
+
+    <script type="module" src="./room/main.js"></script>
   </body>
 </html>
