@@ -2325,6 +2325,7 @@ function frame() {
   // keep the bubble on the carrot's head
   if (!bubble.hidden && WORLD) {
     // in the meadow: tucked right beside his head, whichever way he's facing
+    camera.updateMatrixWorld() // the camera just moved this frame; project with where it is now
     const head = carrot.position.clone().add(new V3(0, BY + 1.3, 0))
     const right = new V3().setFromMatrixColumn(camera.matrixWorld, 0)
     const side = head.clone().addScaledVector(right, 0.62).add(new V3(0, 0.25, 0)).project(camera)
@@ -3025,7 +3026,7 @@ function meadowShot(dt) {
 // ?debug: a handle for testing from the console
 if (new URLSearchParams(location.search).has('debug')) {
   window.__room = {
-    story, openFamily, closeFamily, minis, openFile, desk, spitKey, kp, key, camera, carrot, plant, arms, torso, can, plantTop, idleState: idle, calm: () => ({ inDrawer: story.inDrawer, fam: story.familyOpen, copy: copyEl.hidden, bub: bubble.hidden, ib: story.idleBubble, game: game.open, walk: walk.on, busy: story.busy, sleep: story.sleeping, drag: drag.on, kp: kp.flying, t }),
+    story, openFamily, closeFamily, minis, openFile, desk, spitKey, kp, key, camera, carrot, plant, arms, torso, can, plantTop, say, idleState: idle, calm: () => ({ inDrawer: story.inDrawer, fam: story.familyOpen, copy: copyEl.hidden, bub: bubble.hidden, ib: story.idleBubble, game: game.open, walk: walk.on, busy: story.busy, sleep: story.sleeping, drag: drag.on, kp: kp.flying, t }),
     idle: (name) => { endIdle(); idle.name = name; idle.t0 = t; idle.until = t + IDLES[name].dur; IDLES[name].start() },
   }
 }
