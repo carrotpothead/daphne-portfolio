@@ -38,6 +38,8 @@ class Spring {
 const canvas = $('#c')
 // ?render=walk: export the carrot as frames for the dock pet (carroto). see renderPose() near the end.
 const RENDER = new URLSearchParams(location.search).get('render')
+// /meadow (or ?world=meadow): carroto's grass world. ?stage=1..4 shows how it was built, for filming.
+const WORLD = location.pathname.startsWith('/meadow') ? 'meadow' : new URLSearchParams(location.search).get('world')
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: !!RENDER, preserveDrawingBuffer: !!RENDER })
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
 renderer.toneMapping = THREE.NeutralToneMapping
@@ -453,6 +455,11 @@ const POSES = {
   ],
 }
 Object.assign(POSES, {
+  // hands out low to the sides, palms trailing over the grass tips (the meadow)
+  brush: (s, sh) => {
+    const sway = Math.sin(t * 1.4 + s * 1.3) * 0.05
+    return [sh.clone().add(new V3(s * 0.3, -0.2, 0.02)), new V3(s * (0.78 + sway * 0.4), 0.4 + sway, 0.12 - (MEADOW.speed || 0) * 0.18)]
+  },
   namaste: (s, sh) => [sh.clone().add(new V3(s * 0.16, -0.08, 0.3)), new V3(s * 0.05, 0.9, 0.66)],
   yogaUp: (s, sh) => [sh.clone().add(new V3(s * 0.2, 0.3, 0.06)), new V3(s * 0.46, 1.78, 0.16)],
   wide: (s, sh) => [sh.clone().add(new V3(s * 0.3, 0.04, 0.02)), sh.clone().add(new V3(s * 0.62, 0.08, 0.04))],
@@ -1992,7 +1999,7 @@ let hovered = null
 function pick(x, y) {
   ndc.set((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1)
   ray.setFromCamera(ndc, camera)
-  const hit = ray.intersectObjects([cab, torso, key, copier, plant], true)[0]
+  const hit = ray.intersectObjects(WORLD ? [torso] : [cab, torso, key, copier, plant], true)[0]
   return hit?.object.userData.tag ?? null
 }
 
@@ -2129,7 +2136,7 @@ function frame() {
   cab.position.y = Math.max(0, cabDrop.step(dt))
   if (t > 0.55) carrotPop.t = 1
   carrot.scale.setScalar(Math.max(0.001, carrotPop.step(dt)))
-  if (t > 1.5 && fontsReady && !story.introduced && !RENDER) { story.introduced = true; intro() }
+  if (t > 1.5 && fontsReady && !story.introduced && !RENDER && !WORLD) { story.introduced = true; intro() }
 
   // cabinet rattle
   if (cabShake > 0) cabShake = Math.max(0, cabShake - dt)
@@ -2159,6 +2166,7 @@ function frame() {
   updateIdle()
   updateWalk(dt)
   if (RENDER) renderPose(dt)
+  if (WORLD === 'meadow') updateMeadow(dt)
   updateFamily(dt)
   updatePlant(dt)
   {
@@ -2312,6 +2320,7 @@ function frame() {
   camera.position.y += cy * (1 - dv * 0.8)
   camera.lookAt(camTarget)
   if (RENDER) renderShot()
+  if (WORLD === 'meadow') meadowShot(dt)
 
   // keep the bubble on the carrot's head
   if (!bubble.hidden) {
@@ -2787,6 +2796,182 @@ async function recordFrame() {
     if (REC.n === REC.fps * REC.dur) { document.title = 'render done'; return }
   }
   setTimeout(frame, 0)
+}
+
+/* ================================================================== *
+ *  THE MEADOW (/meadow): a field of grass carroto can walk through and touch
+ *  One blade (a tapered strip) drawn tens of thousands of times with an
+ *  InstancedMesh. The vertex shader bends every blade: wind (two waves
+ *  rolling across the field) and a push away from his body and both hands,
+ *  so the grass parts as he walks and bends under his fingers.
+ *  ?stage=1 one blade · 2 a field · 3 + wind · 4 + it reacts to him (default)
+ * ================================================================== */
+const MEADOW = { stage: Number(new URLSearchParams(location.search).get('stage') ?? 4), speed: 0, phase: 0, heading: 0,
+  keys: new Set(), lastKey: -99, cam: 'follow', grass: null, uniforms: null, camPos: new V3(), camLook: new V3() }
+if (WORLD === 'meadow') {
+  document.title = 'the meadow'
+  for (const o of [cab, plant, copier, key, keyGlint, ground, pool, can]) { o.visible = false; o.removeFromParent() }
+  Object.assign(story, { introduced: true, revealed: true, revealAt: -60, flick: true, busy: true })
+  carrot.position.set(0, 0, 0)
+  scene.fog = new THREE.Fog(BG_LIT, 7, 19)
+  $('.hint').textContent = '( arrow keys to walk · 1 · 2 · 3 for cameras )'
+  // the ground under the grass
+  const soil = mesh(new THREE.CircleGeometry(40, 64), mat('#5f8a3a', { roughness: 1, clearcoat: 0 }), { cast: false, receive: true })
+  soil.rotation.x = -Math.PI / 2
+  scene.add(soil)
+  sun.shadow.camera.left = -6; sun.shadow.camera.right = 6; sun.shadow.camera.top = 6; sun.shadow.camera.bottom = -3
+  sun.shadow.camera.updateProjectionMatrix()
+  scene.add(sun.target)
+
+  // one blade: 1 unit tall (scaled per instance), tapered to a point, a gentle built-in curve
+  const blade = new THREE.PlaneGeometry(0.05, 1, 1, 6)
+  blade.translate(0, 0.5, 0)
+  const pos = blade.attributes.position, cols = []
+  const base = new THREE.Color('#2f5f24'), mid = new THREE.Color('#6fa341'), tip = new THREE.Color('#e3d78f')
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i)
+    pos.setX(i, pos.getX(i) * (1 - y * 0.92))          // taper
+    pos.setZ(i, y * y * 0.12)                           // curve
+    const c = y < 0.55 ? base.clone().lerp(mid, y / 0.55) : mid.clone().lerp(tip, (y - 0.55) / 0.45)
+    cols.push(c.r, c.g, c.b)
+  }
+  blade.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3))
+  blade.computeVertexNormals()
+
+  const N = MEADOW.stage === 1 ? 1 : 42000, R = 11
+  const grassMat = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.75 })
+  const U = { uTime: { value: 0 }, uBody: { value: new V3(0, 0, 99) }, uHandL: { value: new V3(0, -9, 0) }, uHandR: { value: new V3(0, -9, 0) },
+    uWind: { value: MEADOW.stage >= 3 ? 1 : 0 }, uPush: { value: MEADOW.stage >= 4 ? 1 : 0 } }
+  grassMat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, U)
+    sh.vertexShader = 'uniform float uTime, uWind, uPush; uniform vec3 uBody, uHandL, uHandR;\n' + sh.vertexShader.replace('#include <project_vertex>', `
+      vec4 mvPosition = vec4(transformed, 1.0);
+      #ifdef USE_INSTANCING
+        mvPosition = instanceMatrix * mvPosition;
+        vec3 root = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        float bh = length(instanceMatrix[1].xyz);
+      #else
+        vec3 root = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        float bh = 1.0;
+      #endif
+      vec4 wp = modelMatrix * mvPosition;
+      float h = clamp(position.y, 0.0, 1.0);
+      float h2 = h * h;
+      // wind: a slow swell plus a quicker ripple, rolling across the field
+      float g = sin(uTime * 1.25 + root.x * 0.45 + root.z * 0.3) * 0.7 + sin(uTime * 2.9 + root.x * 1.6 - root.z * 1.2) * 0.25;
+      wp.x += g * 0.1 * uWind * h2;
+      wp.z += g * 0.045 * uWind * h2;
+      // he parts the grass: body (wide) and each hand (where it's low enough to reach the tips)
+      vec2 push = vec2(0.0);
+      vec2 d = root.xz - uBody.xz;
+      push += normalize(d + 1e-4) * (1.0 - smoothstep(0.2, 0.62, length(d))) * 0.38;
+      d = root.xz - uHandL.xz;
+      push += normalize(d + 1e-4) * (1.0 - smoothstep(0.02, 0.3, length(d))) * (1.0 - smoothstep(bh - 0.05, bh + 0.25, uHandL.y)) * 0.26;
+      d = root.xz - uHandR.xz;
+      push += normalize(d + 1e-4) * (1.0 - smoothstep(0.02, 0.3, length(d))) * (1.0 - smoothstep(bh - 0.05, bh + 0.25, uHandR.y)) * 0.26;
+      wp.xz += push * uPush * h2;
+      wp.y -= length(push) * uPush * h2 * 0.45 * bh;   // bent blades get shorter, not stretched
+      mvPosition = viewMatrix * wp;
+      gl_Position = projectionMatrix * mvPosition;`)
+  }
+  const grass = new THREE.InstancedMesh(blade, grassMat, N)
+  grass.receiveShadow = true
+  grass.frustumCulled = false
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e3 = new THREE.Euler(), sc = new V3(), p3 = new V3(), col = new THREE.Color()
+  const rnd = (i, k) => { const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x) }
+  for (let i = 0; i < N; i++) {
+    if (N === 1) { p3.set(0.7, 0, 0.4); e3.set(0, 0.4, 0); sc.set(1.4, 0.9, 1.4) }
+    else {
+      const a = rnd(i, 1) * Math.PI * 2, r = Math.sqrt(rnd(i, 2)) * R
+      p3.set(Math.cos(a) * r, 0, Math.sin(a) * r)
+      e3.set((rnd(i, 3) - 0.5) * 0.25, rnd(i, 4) * Math.PI * 2, (rnd(i, 5) - 0.5) * 0.25)
+      const hgt = 0.5 + rnd(i, 6) * 0.42, w = 0.8 + rnd(i, 7) * 0.7
+      sc.set(w, hgt, w)
+    }
+    m4.compose(p3, q.setFromEuler(e3), sc)
+    grass.setMatrixAt(i, m4)
+    grass.setColorAt(i, col.setHSL(0.24 + (rnd(i, 8) - 0.5) * 0.06, 0.5, 0.42 + rnd(i, 9) * 0.2).multiplyScalar(1.45))
+  }
+  scene.add(grass)
+  MEADOW.grass = grass; MEADOW.uniforms = U
+
+  addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase()
+    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k)) { MEADOW.keys.add(k); MEADOW.lastKey = t; e.preventDefault() }
+    if (k === '1') MEADOW.cam = 'follow'
+    if (k === '2') MEADOW.cam = 'hand'
+    if (k === '3') MEADOW.cam = 'low'
+  })
+  addEventListener('keyup', (e) => MEADOW.keys.delete(e.key.toLowerCase()))
+  setTimeout(() => say(MEADOW.stage === 1 ? 'that’s it? one?' : 'touched grass.', { mood: MEADOW.stage === 1 ? 'sulk' : 'happy', hold: 2200 }), 1800)
+}
+
+function updateMeadow(dt) {
+  const K = MEADOW.keys
+  let vx = (K.has('arrowright') || K.has('d') ? 1 : 0) - (K.has('arrowleft') || K.has('a') ? 1 : 0)
+  let vz = (K.has('arrowdown') || K.has('s') ? 1 : 0) - (K.has('arrowup') || K.has('w') ? 1 : 0)
+  // nobody driving: he wanders the meadow on his own (a slow loop), so it films itself
+  if (!vx && !vz && t - MEADOW.lastKey > 4 && MEADOW.stage > 1) {
+    const a = t * 0.12
+    const goal = new V3(Math.sin(a) * 3.2, 0, Math.sin(a * 2) * 1.6)
+    const d = goal.sub(carrot.position)
+    if (d.length() > 0.15) { vx = d.x; vz = d.z }
+  }
+  const len = Math.hypot(vx, vz)
+  const moving = len > 0.01
+  MEADOW.speed = damp(MEADOW.speed, moving ? 1 : 0, 5, dt)
+  if (moving) {
+    vx /= len; vz /= len
+    carrot.position.x += vx * dt * 1.1 * MEADOW.speed
+    carrot.position.z += vz * dt * 1.1 * MEADOW.speed
+    MEADOW.heading = Math.atan2(vx, vz)
+  }
+  const pr = Math.hypot(carrot.position.x, carrot.position.z)
+  if (pr > 8) carrot.position.multiplyScalar(8 / pr)   // stays in the meadow
+  let dh = MEADOW.heading - carrot.rotation.y
+  dh = Math.atan2(Math.sin(dh), Math.cos(dh))
+  carrot.rotation.y += dh * (1 - Math.exp(-7 * dt))
+  // legs and a little bob, like the dock walk
+  const sp = MEADOW.speed
+  MEADOW.phase += dt * sp * Math.PI * 2 * 1.5
+  for (const L of legs) {
+    const ph = MEADOW.phase + (L.side > 0 ? 0 : Math.PI)
+    L.lift = Math.max(0, Math.sin(ph)) * 0.08 * sp; L.swing = Math.cos(ph) * 0.07 * sp; L.out = 0; L.knee = 0
+  }
+  torso.position.y = BY + Math.abs(Math.sin(MEADOW.phase)) * 0.035 * sp
+  pose(MEADOW.stage >= 4 ? 'brush' : 'rest')
+  // tell the grass where he and his hands are
+  const U = MEADOW.uniforms
+  if (U) {
+    U.uTime.value = t
+    U.uBody.value.copy(carrot.position)
+    U.uHandL.value.copy(torso.localToWorld(arms[0].hand.clone()))
+    U.uHandR.value.copy(torso.localToWorld(arms[1].hand.clone()))
+  }
+  // the sun (and its shadow box) follows him
+  sun.target.position.copy(carrot.position)
+  sun.position.copy(carrot.position).add(new V3(-3.5, 7, 6))
+  // eyes: out over the field, or down at his hand in the close-up
+  lookOverride = MEADOW.cam === 'hand' ? U.uHandR.value.clone() : carrot.localToWorld(new V3(0, 1.5, 4)); lookUntil = Infinity
+}
+
+function meadowShot(dt) {
+  const c = carrot.position
+  let pos, look
+  if (MEADOW.stage === 1) { pos = new V3(1.6, 1.0, 3.4); look = new V3(0.4, 0.6, 0.3) }
+  else if (MEADOW.cam === 'hand') {
+    // the wheat-field shot: low, beside his hand, grass tips in the foreground
+    const hand = torso.localToWorld(arms[1].hand.clone())
+    const side = new V3(Math.cos(carrot.rotation.y), 0, -Math.sin(carrot.rotation.y))
+    pos = hand.clone().addScaledVector(side, 0.9).add(new V3(0, -0.05, 0)).addScaledVector(new V3(Math.sin(carrot.rotation.y), 0, Math.cos(carrot.rotation.y)), 0.9)
+    look = hand.clone().add(new V3(0, -0.08, 0))
+  } else if (MEADOW.cam === 'low') { pos = c.clone().add(new V3(1.2, 0.55, 6.5)); look = c.clone().add(new V3(0, 1.0, 0)) }
+  else { pos = c.clone().add(new V3(4.2, 3.2, 10.5)); look = c.clone().add(new V3(0, 0.8, 0)) }
+  const k = 1 - Math.exp(-4 * dt)
+  if (MEADOW.camPos.lengthSq() === 0) { MEADOW.camPos.copy(pos); MEADOW.camLook.copy(look) }
+  MEADOW.camPos.lerp(pos, k); MEADOW.camLook.lerp(look, k)
+  camera.position.copy(MEADOW.camPos)
+  camera.lookAt(MEADOW.camLook)
 }
 
 // ?debug: a handle for testing from the console
