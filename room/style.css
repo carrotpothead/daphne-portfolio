@@ -359,3 +359,8 @@ blockquote { margin: 16px 0 0; padding-left: 14px; border-left: 3px solid #f47b2
 body.render { background: repeating-conic-gradient(#ddd 0 25%, #fff 0 50%) 0 0 / 24px 24px; }
 body.render > :not(canvas) { display: none !important; }
 body.render canvas { position: static !important; width: 270px !important; height: 480px !important; opacity: 1 !important; }
+
+/* the meadow's camera switcher */
+.meadow-cams { position: fixed; right: 20px; bottom: 18px; z-index: 6; display: flex; gap: 8px; }
+.meadow-cams .pill { cursor: pointer; }
+.meadow-cams .pill.on { background: var(--fg); color: var(--bg); }

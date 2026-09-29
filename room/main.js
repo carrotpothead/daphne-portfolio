@@ -2814,7 +2814,15 @@ if (WORLD === 'meadow') {
   Object.assign(story, { introduced: true, revealed: true, revealAt: -60, flick: true, busy: true })
   carrot.position.set(0, 0, 0)
   scene.fog = new THREE.Fog(BG_LIT, 7, 19)
-  $('.hint').textContent = '( arrow keys to walk · 1 · 2 · 3 for cameras )'
+  $('.hint').textContent = '( arrow keys to walk )'
+  const cams = document.createElement('div')
+  cams.className = 'meadow-cams'
+  cams.innerHTML = [['follow', '1 wide'], ['hand', '2 hand'], ['low', '3 low']].map(([k, l]) => `<button class="pill" data-cam="${k}" type="button">${l}</button>`).join('')
+  document.body.appendChild(cams)
+  const markCam = () => cams.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.cam === MEADOW.cam))
+  cams.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { MEADOW.cam = b.dataset.cam; markCam(); b.blur() } })
+  MEADOW.markCam = markCam
+  setTimeout(markCam, 0)
   // the ground under the grass
   const soil = mesh(new THREE.CircleGeometry(40, 64), mat('#5f8a3a', { roughness: 1, clearcoat: 0 }), { cast: false, receive: true })
   soil.rotation.x = -Math.PI / 2
@@ -2898,9 +2906,11 @@ if (WORLD === 'meadow') {
   addEventListener('keydown', (e) => {
     const k = e.key.toLowerCase()
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k)) { MEADOW.keys.add(k); MEADOW.lastKey = t; e.preventDefault() }
-    if (k === '1') MEADOW.cam = 'follow'
-    if (k === '2') MEADOW.cam = 'hand'
-    if (k === '3') MEADOW.cam = 'low'
+    const n = e.code?.startsWith('Digit') || e.code?.startsWith('Numpad') ? e.code.slice(-1) : k
+    if (n === '1') MEADOW.cam = 'follow'
+    if (n === '2') MEADOW.cam = 'hand'
+    if (n === '3') MEADOW.cam = 'low'
+    MEADOW.markCam?.()
   })
   addEventListener('keyup', (e) => MEADOW.keys.delete(e.key.toLowerCase()))
   setTimeout(() => say(MEADOW.stage === 1 ? 'that’s it? one?' : 'touched grass.', { mood: MEADOW.stage === 1 ? 'sulk' : 'happy', hold: 2200 }), 1800)
@@ -2958,7 +2968,7 @@ function updateMeadow(dt) {
 function meadowShot(dt) {
   const c = carrot.position
   let pos, look
-  if (MEADOW.stage === 1) { pos = new V3(1.6, 1.0, 3.4); look = new V3(0.4, 0.6, 0.3) }
+  if (MEADOW.stage === 1 && MEADOW.cam === 'follow') { pos = new V3(1.6, 1.0, 3.4); look = new V3(0.4, 0.6, 0.3) }
   else if (MEADOW.cam === 'hand') {
     // the wheat-field shot: low, beside his hand, grass tips in the foreground
     const hand = torso.localToWorld(arms[1].hand.clone())
