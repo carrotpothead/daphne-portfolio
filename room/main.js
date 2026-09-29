@@ -2935,7 +2935,7 @@ function updateMeadow(dt) {
   let vz = (K.has('arrowdown') || K.has('s') ? 1 : 0) - (K.has('arrowup') || K.has('w') ? 1 : 0)
   // stage 1: he wanders the bare field, then ONE blade sprouts beside him
   if (MEADOW.stage === 1) {
-    const SPROUT = 5.5
+    const SPROUT = 11 // a good long wander first
     if (!MEADOW.sprouted && t >= SPROUT) {
       MEADOW.sprouted = t
       // beside him, on the camera side, so it's clearly its own little thing
@@ -2958,7 +2958,15 @@ function updateMeadow(dt) {
   // nobody driving: he wanders the meadow on his own (a slow loop), so it films itself
   if (!vx && !vz && t - MEADOW.lastKey > 4 && (MEADOW.stage > 1 || !MEADOW.sprouted)) {
     const a = t * 0.12
-    const goal = MEADOW.stage === 1 ? new V3(2.2, 0, 0.4) : new V3(Math.sin(a) * 3.2, 0, Math.sin(a * 2) * 1.6)
+    let goal
+    if (MEADOW.stage === 1) {
+      // a wander across the bare field: out, around, back toward the camera
+      const WP = [[1.4, -1.0], [-0.6, -2.2], [-2.0, -0.6], [0.4, 0.9], [2.0, 0.3]]
+      MEADOW.wp ??= 0
+      const w = WP[Math.min(MEADOW.wp, WP.length - 1)]
+      goal = new V3(w[0], 0, w[1])
+      if (goal.distanceTo(carrot.position) < 0.25 && MEADOW.wp < WP.length - 1) MEADOW.wp++
+    } else goal = new V3(Math.sin(a) * 3.2, 0, Math.sin(a * 2) * 1.6)
     const d = goal.sub(carrot.position)
     if (d.length() > 0.15) { vx = d.x; vz = d.z }
   }
