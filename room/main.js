@@ -2323,7 +2323,16 @@ function frame() {
   if (WORLD === 'meadow') meadowShot(dt)
 
   // keep the bubble on the carrot's head
-  if (!bubble.hidden) {
+  if (!bubble.hidden && WORLD) {
+    // in the meadow: tucked right beside his head, whichever way he's facing
+    const head = carrot.position.clone().add(new V3(0, BY + 1.3, 0))
+    const right = new V3().setFromMatrixColumn(camera.matrixWorld, 0)
+    const side = head.clone().addScaledVector(right, 0.62).add(new V3(0, 0.25, 0)).project(camera)
+    const sx = (side.x * 0.5 + 0.5) * innerWidth, sy = (-side.y * 0.5 + 0.5) * innerHeight
+    const bw = bubble.offsetWidth, bh = bubble.offsetHeight
+    bubble.style.left = `${Math.min(Math.max(16, sx), innerWidth - bw - 16)}px`
+    bubble.style.top = `${Math.min(Math.max(16, sy - bh), innerHeight - bh - 16)}px`
+  } else if (!bubble.hidden) {
     const p = carrot.localToWorld(new V3(0.22, BY + 2.02, 0)).project(camera)
     const sx = (p.x * 0.5 + 0.5) * innerWidth
     const sy = (-p.y * 0.5 + 0.5) * innerHeight
@@ -2814,7 +2823,9 @@ if (WORLD === 'meadow') {
   Object.assign(story, { introduced: true, revealed: true, revealAt: -60, flick: true, busy: true })
   carrot.position.set(MEADOW.stage === 1 ? -2.4 : 0, 0, 0)
   scene.fog = new THREE.Fog(BG_LIT, 7, 19)
-  $('.hint').textContent = '( arrow keys to walk )'
+  $('.hint').textContent = '( arrow keys to walk · h hides this )'
+  // clean frame for recording: no logo or sound button up top; H hides the rest
+  $('.top').style.display = 'none'
   const cams = document.createElement('div')
   cams.className = 'meadow-cams'
   cams.innerHTML = [['follow', '1 wide'], ['hand', '2 hand'], ['low', '3 low']].map(([k, l]) => `<button class="pill" data-cam="${k}" type="button">${l}</button>`).join('')
@@ -2911,6 +2922,7 @@ if (WORLD === 'meadow') {
     if (n === '2') MEADOW.cam = 'hand'
     if (n === '3') MEADOW.cam = 'low'
     MEADOW.markCam?.()
+    if (k === 'h') { const on = cams.style.display === 'none'; cams.style.display = on ? '' : 'none'; $('.hint').style.display = on ? '' : 'none' }
   })
   addEventListener('keyup', (e) => MEADOW.keys.delete(e.key.toLowerCase()))
   if (MEADOW.stage > 1) setTimeout(() => say('touched grass.', { mood: 'happy', hold: 2200 }), 1800)
