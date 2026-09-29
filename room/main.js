@@ -2812,7 +2812,7 @@ if (WORLD === 'meadow') {
   document.title = 'the meadow'
   for (const o of [cab, plant, copier, key, keyGlint, ground, pool, can]) { o.visible = false; o.removeFromParent() }
   Object.assign(story, { introduced: true, revealed: true, revealAt: -60, flick: true, busy: true })
-  carrot.position.set(0, 0, 0)
+  carrot.position.set(MEADOW.stage === 1 ? -2.4 : 0, 0, 0)
   scene.fog = new THREE.Fog(BG_LIT, 7, 19)
   $('.hint').textContent = '( arrow keys to walk )'
   const cams = document.createElement('div')
@@ -2888,7 +2888,7 @@ if (WORLD === 'meadow') {
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e3 = new THREE.Euler(), sc = new V3(), p3 = new V3(), col = new THREE.Color()
   const rnd = (i, k) => { const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x) }
   for (let i = 0; i < N; i++) {
-    if (N === 1) { p3.set(0.7, 0, 0.4); e3.set(0, 0.4, 0); sc.set(1.4, 0.9, 1.4) }
+    if (N === 1) { p3.set(0, -5, 0); e3.set(0, 0.4, 0); sc.set(1.4, 0.001, 1.4) } // stage 1: hidden until it sprouts
     else {
       const a = rnd(i, 1) * Math.PI * 2, r = Math.sqrt(rnd(i, 2)) * R
       p3.set(Math.cos(a) * r, 0, Math.sin(a) * r)
@@ -2913,17 +2913,39 @@ if (WORLD === 'meadow') {
     MEADOW.markCam?.()
   })
   addEventListener('keyup', (e) => MEADOW.keys.delete(e.key.toLowerCase()))
-  setTimeout(() => say(MEADOW.stage === 1 ? 'that’s it? one?' : 'touched grass.', { mood: MEADOW.stage === 1 ? 'sulk' : 'happy', hold: 2200 }), 1800)
+  if (MEADOW.stage > 1) setTimeout(() => say('touched grass.', { mood: 'happy', hold: 2200 }), 1800)
 }
 
 function updateMeadow(dt) {
   const K = MEADOW.keys
   let vx = (K.has('arrowright') || K.has('d') ? 1 : 0) - (K.has('arrowleft') || K.has('a') ? 1 : 0)
   let vz = (K.has('arrowdown') || K.has('s') ? 1 : 0) - (K.has('arrowup') || K.has('w') ? 1 : 0)
+  // stage 1: he wanders the bare field, then ONE blade sprouts beside him
+  if (MEADOW.stage === 1) {
+    const SPROUT = 5.5
+    if (!MEADOW.sprouted && t >= SPROUT) {
+      MEADOW.sprouted = t
+      // beside him, on the camera side, so it's clearly its own little thing
+      MEADOW.bladeAt = carrot.position.clone().add(new V3(0.85, 0, 0.45))
+      MEADOW.keys.clear(); MEADOW.lastKey = t
+      squash.vel += 6; mood('shock'); sfx.pip?.()
+      setTimeout(() => say('that’s it? one?', { mood: 'sulk', hold: 3000 }), 1300)
+    }
+    if (MEADOW.sprouted) {
+      const u = t - MEADOW.sprouted
+      const g = u <= 0 ? 0 : 1 - Math.exp(-5.5 * u) * Math.cos(9 * u)   // pops up, overshoots, settles
+      const m = new THREE.Matrix4().compose(MEADOW.bladeAt, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0.4, 0)), new V3(1.4, Math.max(0.001, 0.9 * g), 1.4))
+      MEADOW.grass.setMatrixAt(0, m); MEADOW.grass.instanceMatrix.needsUpdate = true
+      // turn to face it
+      const d = MEADOW.bladeAt.clone().sub(carrot.position)
+      MEADOW.heading = Math.atan2(d.x, d.z)
+      vx = vz = 0
+    }
+  }
   // nobody driving: he wanders the meadow on his own (a slow loop), so it films itself
-  if (!vx && !vz && t - MEADOW.lastKey > 4 && MEADOW.stage > 1) {
+  if (!vx && !vz && t - MEADOW.lastKey > 4 && (MEADOW.stage > 1 || !MEADOW.sprouted)) {
     const a = t * 0.12
-    const goal = new V3(Math.sin(a) * 3.2, 0, Math.sin(a * 2) * 1.6)
+    const goal = MEADOW.stage === 1 ? new V3(2.2, 0, 0.4) : new V3(Math.sin(a) * 3.2, 0, Math.sin(a * 2) * 1.6)
     const d = goal.sub(carrot.position)
     if (d.length() > 0.15) { vx = d.x; vz = d.z }
   }
@@ -2962,13 +2984,17 @@ function updateMeadow(dt) {
   sun.target.position.copy(carrot.position)
   sun.position.copy(carrot.position).add(new V3(-3.5, 7, 6))
   // eyes: out over the field, or down at his hand in the close-up
-  lookOverride = MEADOW.cam === 'hand' ? U.uHandR.value.clone() : carrot.localToWorld(new V3(0, 1.5, 4)); lookUntil = Infinity
+  lookOverride = MEADOW.sprouted ? MEADOW.bladeAt.clone().add(new V3(0, 0.6, 0)) : MEADOW.cam === 'hand' ? U.uHandR.value.clone() : carrot.localToWorld(new V3(0, 1.5, 4)); lookUntil = Infinity
 }
 
 function meadowShot(dt) {
   const c = carrot.position
   let pos, look
-  if (MEADOW.stage === 1 && MEADOW.cam === 'follow') { pos = new V3(1.6, 1.0, 3.4); look = new V3(0.4, 0.6, 0.3) }
+  if (MEADOW.stage === 1 && MEADOW.cam === 'follow' && MEADOW.sprouted) {
+    // after the sprout: frame him and his one blade together
+    const mid = c.clone().lerp(MEADOW.bladeAt, 0.5)
+    pos = mid.clone().add(new V3(3.4, 2.1, 8.2)); look = mid.clone().add(new V3(0, 0.75, 0))
+  }
   else if (MEADOW.cam === 'hand') {
     // the wheat-field shot: low, beside his hand, grass tips in the foreground
     const hand = torso.localToWorld(arms[1].hand.clone())
