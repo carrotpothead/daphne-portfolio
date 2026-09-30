@@ -427,9 +427,16 @@ function updateLegs() {
     const out = L.out || 0
     const ankle = new V3(s * 0.16 + out, 0.06 + L.lift, 0.06 + L.swing)
     const knee = new V3(s * 0.155 + out * 0.5 + (L.knee || 0), 0.15 + L.lift * 0.7, 0.05 + L.swing * 0.8)
-    const pts = [new V3(s * 0.07, BY + 0.26, 0), new V3(s * 0.12 + sway + (L.knee || 0) * 0.6, BY * 0.62, 0.02 + L.swing * 0.4), knee, ankle]
+    let pts = [new V3(s * 0.07, BY + 0.26, 0), new V3(s * 0.12 + sway + (L.knee || 0) * 0.6, BY * 0.62, 0.02 + L.swing * 0.4), knee, ankle]
+    const k = L.sit || 0
+    if (k > 0) {
+      // sitting: hips at the body, thighs out forward, knees bent, feet flat on the ground in front
+      const hy = torso.position.y + 0.2
+      const sat = [new V3(s * 0.08, hy, 0.12), new V3(s * 0.12, hy - 0.02, 0.32), new V3(s * 0.14, hy - 0.04, 0.5), new V3(s * 0.15, 0.06, 0.56)]
+      pts = pts.map((p, i) => p.lerp(sat[i], k))
+    }
     taperTube(L.m.geometry, pts, 0.036, 0.03, 16, 9)
-    L.foot.position.set(s * 0.16 + out, L.lift, 0.05 + L.swing)
+    L.foot.position.set(s * 0.16 + out, L.lift, 0.05 + L.swing).lerp(new V3(s * 0.15, 0, 0.55), k)
   }
 }
 
@@ -469,10 +476,10 @@ Object.assign(POSES, {
     return [sh.clone().add(new V3(s * 0.09, -0.2, 0.07 + k * 0.05)), sh.clone().add(new V3(s * 0.1, -0.42, 0.16 + k * 0.16))]
   },
   // watch party: bucket held in front at the belly; the other hand goes bucket -> mouth (REC.munch 0..1)
-  bucket: (s, sh) => [sh.clone().add(new V3(s * 0.3, -0.18, 0.02)), new V3(s * 0.66, 0.5, 0.12)],  // out at his side, visible from behind
+  bucket: (s, sh) => [sh.clone().add(new V3(s * 0.26, -0.24, 0.2)), new V3(s * 0.2, 0.3, 0.52)],   // popcorn on his lap
   munch: (s, sh) => {
     const m = REC.munch ?? 0
-    return [sh.clone().add(new V3(s * 0.3, -0.12 + m * 0.2, 0.18)), new V3(s * (0.6 - m * 0.42), 0.58 + m * 0.4, 0.3 + m * 0.3)]
+    return [sh.clone().add(new V3(s * 0.26, -0.2 + m * 0.2, 0.28)), new V3(s * (0.06 - m * 0.02), 0.34 + m * 0.58, 0.6 + m * 0.02)]
   },
   // typing on the laptop: hands on the keys, bobbing in turn (REC.type is the clip time)
   type: (s, sh) => {
@@ -2385,8 +2392,9 @@ const lieShadow = contact(2.2, 1.1)
 // colleague props: a tiny desk + laptop for focusing, a bento and onigiri for lunch, confetti
 const desk3d = new THREE.Group(), bento = new THREE.Group(), onigiri = new THREE.Group(), confetti = []
 const propPop = new Spring(0, 150, 12)
-// watch party: a striped popcorn bucket
+// watch party: a striped popcorn bucket, and a camping chair to watch from
 const popcorn = new THREE.Group()
+const chair = new THREE.Group()
 const clockPop = new Spring(0, 150, 12)
 function walkSpeed(u) {
   if (u < 3 || u > 8.25) return 0
@@ -2466,6 +2474,28 @@ if (RENDER) {
     }
     torso.add(popcorn)
     popcorn.scale.setScalar(0.001)
+    // camping chair: cobalt fabric sling + back, a thin silver frame, armrests, a cup holder with a drink
+    const fabric = mat(C.cobalt, { roughness: 0.75 }), metal = mat('#c9ccd3', { roughness: 0.3, metalness: 0.8 })
+    const tube = (a, b, r = 0.018) => { const d = b.clone().sub(a); const m = mesh(new THREE.CylinderGeometry(r, r, d.length(), 10), metal); m.position.copy(a).lerp(b, 0.5); m.quaternion.setFromUnitVectors(new V3(0, 1, 0), d.normalize()); chair.add(m); return m }
+    const seat = mesh(new RoundedBoxGeometry(0.72, 0.06, 0.52, 3, 0.03), fabric)
+    seat.position.set(0, 0.5, 0.02); chair.add(seat)
+    const back = mesh(new RoundedBoxGeometry(0.72, 0.62, 0.05, 3, 0.025), fabric)
+    back.position.set(0, 0.86, -0.28); back.rotation.x = -0.22; chair.add(back)
+    for (const sd of [-1, 1]) {
+      tube(new V3(sd * 0.38, 0, 0.28), new V3(sd * 0.38, 0.52, -0.24))     // the X legs
+      tube(new V3(sd * 0.38, 0, -0.26), new V3(sd * 0.38, 0.52, 0.28))
+      tube(new V3(sd * 0.38, 0.52, -0.26), new V3(sd * 0.4, 1.16, -0.36))   // back uprights
+      tube(new V3(sd * 0.4, 0.74, -0.24), new V3(sd * 0.4, 0.74, 0.26), 0.022) // armrests
+      tube(new V3(sd * 0.4, 0.74, 0.26), new V3(sd * 0.38, 0.52, 0.28))
+    }
+    const holder = mesh(new THREE.CylinderGeometry(0.06, 0.055, 0.07, 20, 1, true), fabric)
+    holder.position.set(0.47, 0.76, 0.16); chair.add(holder)
+    const cup = mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.16, 20), mat('#e0412c', { roughness: 0.4 }))
+    cup.position.set(0.47, 0.82, 0.16); chair.add(cup)
+    const straw = mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.16, 8), mat('#fbf6ea'))
+    straw.position.set(0.48, 0.94, 0.15); straw.rotation.z = -0.25; chair.add(straw)
+    carrot.add(chair)
+    chair.scale.setScalar(0.001)
   }
   if (RENDER === 'eat') {
     const red = mat('#d8452e', { roughness: 0.4, clearcoat: 0.5 }), rice = mat('#fbf6ea', { roughness: 0.8 }), nori = mat('#23302a', { roughness: 0.7 })
@@ -2728,21 +2758,29 @@ function renderClip(name, u, dt) {
     return
   }
   if (name === 'watchin' || name === 'watch' || name === 'watchout') {
-    // turn his back to us to face the screen, popcorn out, munching now and then
-    const BACK = Math.PI - 0.45 // mostly back to us, the bucket side turned our way
-    let turn = 1, have = 1
-    if (name === 'watchin') { turn = smooth(0.2, 1.1, u); have = u > 0.5 ? 1 : 0 }
-    if (name === 'watchout') { turn = 1 - smooth(0.3, 1.2, u); have = u < 0.35 ? 1 : 0 }
-    carrot.rotation.y = 0.5 + (BACK - 0.5) * turn
+    // pull up a camping chair, sit at a 3/4 angle facing the screen, popcorn on his lap, munch now and then
+    const SIDE = 1.05 // turned toward the screen (the app mirrors him to face the video's side)
+    let turn = 1, sit = 1, chairOn = 1, have = 1
+    if (name === 'watchin') { chairOn = u > 0.05 ? 1 : 0; turn = smooth(0.1, 0.6, u); sit = smooth(0.55, 1.15, u); have = u > 1.1 ? 1 : 0 }
+    if (name === 'watchout') { have = u < 0.2 ? 1 : 0; sit = 1 - smooth(0.15, 0.7, u); turn = 1 - smooth(0.7, 1.25, u); chairOn = u < 0.85 ? 1 : 0 }
+    carrot.rotation.y = 0.5 + (SIDE - 0.5) * turn
+    for (const L of legs) { L.sit = sit; L.lift = 0; L.swing = 0; L.out = 0; L.knee = 0 }
+    torso.position.y = BY + 0.2 * sit - (name === 'watchin' && u > 0.55 && u < 0.8 ? 0.03 : 0)
+    torso.rotation.x = -0.12 * sit                      // leaning back into it
+    REC.chair = REC.chair ?? new Spring(0, 160, 12)
+    REC.chair.t = chairOn
+    if (name === 'watch') REC.chair.v = 1
+    chair.scale.setScalar(Math.max(0.001, REC.chair.step(dt)))
     propPop.t = have
     if (name === 'watch') propPop.v = 1
-    popcorn.scale.setScalar(Math.max(0.001, propPop.step(dt)))
-    popcorn.position.copy(arms[1].hand).add(new V3(0.02, 0.12, 0.05))
+    popcorn.scale.setScalar(Math.max(0.001, propPop.step(dt) * 0.85))
+    popcorn.position.copy(arms[1].hand).add(new V3(-0.02, 0.1, 0.02))
     // a handful every 3s (twice per 6s loop, so it wraps)
     REC.munch = name === 'watch' ? Math.max(0, Math.sin((u / 3) * Math.PI * 2 - 1.3)) ** 2 : 0
-    pose(turn > 0.4 ? 'munch' : 'rest', turn > 0.4 ? 'bucket' : 'rest')
-    torso.rotation.z = name === 'watch' ? Math.sin((u / 6) * Math.PI * 2) * 0.02 : 0
-    lookOverride = carrot.localToWorld(new V3(0, 1.6, 4)); lookUntil = Infinity
+    pose(sit > 0.5 ? 'munch' : 'rest', sit > 0.5 ? 'bucket' : 'rest')
+    torso.rotation.z = name === 'watch' ? Math.sin((u / 6) * Math.PI * 2) * 0.015 : 0
+    // eyes up and forward, at the screen
+    lookOverride = carrot.localToWorld(new V3(0, 2.6, 3)); lookUntil = Infinity
     setMood('happy')
     return
   }
