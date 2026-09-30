@@ -468,6 +468,12 @@ Object.assign(POSES, {
     const k = Math.sin(REC.phase + (s > 0 ? Math.PI : 0)) * REC.speed
     return [sh.clone().add(new V3(s * 0.09, -0.2, 0.07 + k * 0.05)), sh.clone().add(new V3(s * 0.1, -0.42, 0.16 + k * 0.16))]
   },
+  // watch party: bucket held in front at the belly; the other hand goes bucket -> mouth (REC.munch 0..1)
+  bucket: (s, sh) => [sh.clone().add(new V3(s * 0.3, -0.18, 0.02)), new V3(s * 0.66, 0.5, 0.12)],  // out at his side, visible from behind
+  munch: (s, sh) => {
+    const m = REC.munch ?? 0
+    return [sh.clone().add(new V3(s * 0.3, -0.12 + m * 0.2, 0.18)), new V3(s * (0.6 - m * 0.42), 0.58 + m * 0.4, 0.3 + m * 0.3)]
+  },
   // typing on the laptop: hands on the keys, bobbing in turn (REC.type is the clip time)
   type: (s, sh) => {
     const tap = Math.max(0, Math.sin((REC.type ?? 0) * Math.PI * 4 + (s > 0 ? 0 : Math.PI))) * 0.035
@@ -2365,7 +2371,7 @@ const TRICKS = {
 // the standing loop that plays between walks; 12s so breathing and leaf sway wrap round cleanly
 const IDLE_LOOP = 12
 // short clips the dock app plays on cue: lunch alarm, nap (doze / sleep loop / wake), held up (dangle loop / land)
-const CLIPS = { pfp: 0.1, rick: 0.1, lunch: 6.5, doze: 4.8, sleep: 6, wake: 2.4, dangle: 2, land: 1.4, focusin: 1.2, focus: 6, focusout: 2.4, eat: 6, cheer: 2.4 }
+const CLIPS = { pfp: 0.1, rick: 0.1, lunch: 6.5, doze: 4.8, sleep: 6, wake: 2.4, dangle: 2, land: 1.4, focusin: 1.2, focus: 6, focusout: 2.4, eat: 6, cheer: 2.4, watchin: 1.8, watch: 6, watchout: 1.4 }
 const REC = { fps: 24, dur: TRICKS[RENDER]?.dur ?? CLIPS[RENDER] ?? (RENDER === 'idle' ? IDLE_LOOP : 10), warm: 2, n: 0, phase: 0, speed: 0, started: false }
 const potPop = new Spring(0, 120, 11)
 const clockProp = new THREE.Group()
@@ -2379,6 +2385,8 @@ const lieShadow = contact(2.2, 1.1)
 // colleague props: a tiny desk + laptop for focusing, a bento and onigiri for lunch, confetti
 const desk3d = new THREE.Group(), bento = new THREE.Group(), onigiri = new THREE.Group(), confetti = []
 const propPop = new Spring(0, 150, 12)
+// watch party: a striped popcorn bucket
+const popcorn = new THREE.Group()
 const clockPop = new Spring(0, 150, 12)
 function walkSpeed(u) {
   if (u < 3 || u > 8.25) return 0
@@ -2439,6 +2447,25 @@ if (RENDER) {
     desk3d.add(contact(1.6, 0.9))
     desk3d.scale.setScalar(0.001)
     scene.add(desk3d)
+  }
+  if (['watchin', 'watch', 'watchout'].includes(RENDER)) {
+    const stripes = canvasTex(256, 64, (g, w, h) => {
+      for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#fbf6ea' : '#e0412c'; g.fillRect((i * w) / 8, 0, w / 8 + 1, h) }
+    })
+    const bucket = mesh(new THREE.CylinderGeometry(0.17, 0.12, 0.28, 32, 1, true), new THREE.MeshStandardMaterial({ map: stripes, roughness: 0.5, side: THREE.DoubleSide }))
+    const bottom = mesh(new THREE.CircleGeometry(0.12, 24), mat('#e0412c'))
+    bottom.rotation.x = Math.PI / 2; bottom.position.y = -0.14
+    popcorn.add(bucket, bottom)
+    const kernel = mat('#fff4d2', { roughness: 0.8 }), butter = mat('#ffd98a', { roughness: 0.7 })
+    const r = (i, k) => { const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x) }
+    for (let i = 0; i < 26; i++) {
+      const a = r(i, 1) * Math.PI * 2, d = Math.sqrt(r(i, 2)) * 0.14
+      const k = mesh(new THREE.IcosahedronGeometry(0.035 + r(i, 3) * 0.02, 1), i % 4 ? kernel : butter)
+      k.position.set(Math.cos(a) * d, 0.14 + (0.14 - d) * 0.5 + r(i, 4) * 0.04, Math.sin(a) * d)
+      popcorn.add(k)
+    }
+    torso.add(popcorn)
+    popcorn.scale.setScalar(0.001)
   }
   if (RENDER === 'eat') {
     const red = mat('#d8452e', { roughness: 0.4, clearcoat: 0.5 }), rice = mat('#fbf6ea', { roughness: 0.8 }), nori = mat('#23302a', { roughness: 0.7 })
@@ -2698,6 +2725,25 @@ function renderClip(name, u, dt) {
     if (u > 1.5 && !REC.happy) { REC.happy = true; setMood('happy') }
     if (u > 1.7) lookOverride = ahead
     pose(u < 0.9 ? 'stretch' : 'rest')
+    return
+  }
+  if (name === 'watchin' || name === 'watch' || name === 'watchout') {
+    // turn his back to us to face the screen, popcorn out, munching now and then
+    const BACK = Math.PI - 0.45 // mostly back to us, the bucket side turned our way
+    let turn = 1, have = 1
+    if (name === 'watchin') { turn = smooth(0.2, 1.1, u); have = u > 0.5 ? 1 : 0 }
+    if (name === 'watchout') { turn = 1 - smooth(0.3, 1.2, u); have = u < 0.35 ? 1 : 0 }
+    carrot.rotation.y = 0.5 + (BACK - 0.5) * turn
+    propPop.t = have
+    if (name === 'watch') propPop.v = 1
+    popcorn.scale.setScalar(Math.max(0.001, propPop.step(dt)))
+    popcorn.position.copy(arms[1].hand).add(new V3(0.02, 0.12, 0.05))
+    // a handful every 3s (twice per 6s loop, so it wraps)
+    REC.munch = name === 'watch' ? Math.max(0, Math.sin((u / 3) * Math.PI * 2 - 1.3)) ** 2 : 0
+    pose(turn > 0.4 ? 'munch' : 'rest', turn > 0.4 ? 'bucket' : 'rest')
+    torso.rotation.z = name === 'watch' ? Math.sin((u / 6) * Math.PI * 2) * 0.02 : 0
+    lookOverride = carrot.localToWorld(new V3(0, 1.6, 4)); lookUntil = Infinity
+    setMood('happy')
     return
   }
   if (name === 'focusin' || name === 'focus' || name === 'focusout') {
