@@ -45,7 +45,9 @@ const RENDER = new URLSearchParams(location.search).get('render')
 // (local dev server only for now: not public until their posts are out)
 const WORLD = !import.meta.env.DEV ? null : location.pathname.startsWith('/meadow') ? 'meadow' : location.pathname.startsWith('/village') ? 'village' : new URLSearchParams(location.search).get('world')
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: !!RENDER, preserveDrawingBuffer: !!RENDER })
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+// phones: a little lower resolution and smaller shadows, so the first frames come sooner and stay smooth
+const PHONE = matchMedia('(pointer: coarse)').matches || innerWidth < 640
+renderer.setPixelRatio(Math.min(devicePixelRatio, PHONE ? 1.5 : 2))
 renderer.toneMapping = THREE.NeutralToneMapping
 renderer.shadowMap.enabled = true
 renderer.shadowMap.type = THREE.PCFShadowMap
@@ -64,7 +66,7 @@ scene.add(new THREE.HemisphereLight(0xffffff, 0xe0cfae, 0.55))
 const sun = new THREE.DirectionalLight(0xfff3e2, 2.3)
 sun.position.set(-3.5, 7, 6)
 sun.castShadow = true
-sun.shadow.mapSize.set(2048, 2048)
+sun.shadow.mapSize.set(PHONE ? 1024 : 2048, PHONE ? 1024 : 2048)
 Object.assign(sun.shadow.camera, { left: -4, right: 4, top: 4, bottom: -2, near: 1, far: 22 })
 sun.shadow.radius = 5
 sun.shadow.blurSamples = 16
@@ -2362,11 +2364,17 @@ function frame() {
   }
 
   renderer.render(scene, camera)
+  if (loader && t > 0.5) { const l = loader; loader = null; l.classList.add('gone'); setTimeout(() => l.remove(), 700) }   // he's popping in: loader off
   if (RENDER) { recordFrame(); return }
   requestAnimationFrame(frame)
 }
 
-requestAnimationFrame(() => { canvas.classList.add('ready'); frame() })
+// Compiling every material for the first frame can take seconds on a phone, and doing it inside the first
+// render freezes the page. So compile them first without blocking (the loader keeps bobbing), then start.
+let loader = document.getElementById('loader')
+const start = () => requestAnimationFrame(() => { canvas.classList.add('ready'); frame() })
+if (RENDER) { loader?.remove(); loader = null; start() }
+else renderer.compileAsync(scene, camera).catch(() => {}).finally(start)
 
 /* ================================================================== *
  *  RENDER MODE (?render=walk): frames for the dock pet
