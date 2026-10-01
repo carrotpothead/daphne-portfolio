@@ -45,6 +45,7 @@ const AGENT_POSES = [['walk', 'walk'], ['idle', 'hello'], ['water', 'water ferna
 const SCREENS = ['02', '03', '05', '06', '07', '10', '13'].map((n) => `./assets/app/${n}.jpg`)
 const Q = 2 // the question screen: tap an answer
 const WRONG = './assets/app/wrong.jpg'
+const TIP = './assets/app/tip.jpg' // the question screen's "need a tip?": Clavis explains it in one line
 
 /*
  * What's in each folder.
@@ -88,7 +89,7 @@ const FOLDERS = {
     no: '002', title: 'bandroom', tab: 'bandroom', color: '#1d33d8', inside: '#4a5fe8', ink: '#ffffff',
     stamp: { text: 'live', color: '#1f8a4c' },
     left: [
-      { type: 'photo', src: '/images/projects/bandroom-site.png', caption: 'the site', clip: true, dx: 0.03, dy: 0.02, rot: -4, w: 15.5, fit: 'top', visit: { label: 'visit bandroom.ai ↗', href: 'https://bandroom.ai' } },
+      { type: 'photo', src: '/images/projects/bandroom-site.jpg', caption: 'the site', clip: true, dx: 0.03, dy: 0.02, rot: -4, w: 15.5, fit: 'top', visit: { label: 'visit bandroom.ai ↗', href: 'https://bandroom.ai' } },
       { type: 'photo', src: '/images/wall/launch-video.jpg', video: '/videos/bandroom-launch.mp4', caption: 'the launch film', dx: 0.6, dy: 0.02, rot: 5, w: 11, tall: true },
       { type: 'bag', label: 'bandroom, the app', contents: [{ type: 'phone' }], dx: 0.04, dy: 0.42, rot: -5 },
       { type: 'card', title: 'my toolkit here', chips: ['Positioning', 'Brand & voice', 'Higgsfield', 'ElevenLabs', 'Claude Code', 'GA4'], dx: 0.44, dy: 0.62, rot: 2 },
@@ -490,16 +491,17 @@ export function createDesk({ sfx = {}, onClose, onAction } = {}) {
     img.classList.remove('swap'); void img.offsetWidth; img.classList.add('swap')
     img.src = src
     const hint = it.el.querySelector('.ph-hint')
-    hint.textContent = n === Q ? 'tap an answer' : n === -1 ? 'tap to try again' : 'tap → · left edge ←'
+    hint.textContent = n === Q ? 'tap an answer (or ask clavis)' : n === -1 ? 'tap to try again' : n === -2 ? 'tap got it' : 'tap → · left edge ←'
   }
   function tapPhone(it, e) {
     const r = it.el.querySelector('.ph-screen img').getBoundingClientRect()
     const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height
     sfx.tap?.()
-    if (it.screen === -1) return showScreen(it, SCREENS[Q], Q)
+    if (it.screen === -1 || it.screen === -2) return showScreen(it, SCREENS[Q], Q)
     if (it.screen === Q) {
       if (fy > 0.26 && fy < 0.33) return showScreen(it, WRONG, -1) // quaver
       if (fy > 0.35 && fy < 0.42) return showScreen(it, SCREENS[Q + 1], Q + 1) // crochet
+      if (fy > 0.47 && fy < 0.6 && fx > 0.4) return showScreen(it, TIP, -2) // "need a tip?"
       if (fx > 0.22) {
         const hint = it.el.querySelector('.ph-hint')
         hint.classList.add('nudge')
@@ -609,7 +611,7 @@ export function createDesk({ sfx = {}, onClose, onAction } = {}) {
     place(it)
     dim.classList.add('on')
     el.classList.add('inspecting')
-    if (it.spec.type === 'phone') showScreen(it, it.screen >= 0 ? SCREENS[it.screen] : WRONG, it.screen)
+    if (it.spec.type === 'phone') showScreen(it, it.screen >= 0 ? SCREENS[it.screen] : it.screen === -2 ? TIP : WRONG, it.screen)
     if (it.spec.type === 'recipe') setTimeout(() => it.el.classList.add('flipped'), 260)
     const v = it.el.querySelector('video')
     if (v) { v.muted = false; v.currentTime = 0; v.play().catch(() => { v.muted = true; v.play() }) }
