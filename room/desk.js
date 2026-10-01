@@ -99,11 +99,11 @@ const FOLDERS = {
     stack: [
       {
         type: 'report', page: '1 of 2',
-        title: 'bandroom', kicker: 'Anyone can hear the music. Bandroom teaches you to read it, five minutes at a time.',
+        title: 'bandroom', kicker: 'Learn to read music. It learns how you learn.',
         sections: [
-          ['the brief', 'Graded music theory is a fixed sequence. Everyone gets the same order at the same pace, and the gaps carry forward. Bandroom is a graded course in five-minute daily sessions that adapts: it tracks mastery for each concept and reorders the path after every answer.'],
-          ['my part', 'Built with a technical founder. I lead marketing (positioning, brand, go-to-market) and feed product input on UX and features. The positioning line is mine: everyone can hear music; this is for people who want to read it. It runs from the homepage through every post.'],
-          ['who it’s for', ['The curious learner, 16 to 30.', 'The student with an exam coming up.', 'The instrument teacher, who gets a one-tap progress report.']],
+          ['the brief', 'Graded music theory is a fixed sequence: same order, same pace, and the gaps carry forward. Bandroom teaches music reading in short daily sessions that adapt to your instrument and to the notes you keep missing. A missed note comes back until it sticks, and every month you get an Encore, a report written about you and nobody else.'],
+          ['my part', 'Built with a technical founder. I lead marketing (positioning, brand, go-to-market) and feed product input on UX and features. The pitch moved from whether you can read the music you hear to what makes Bandroom different: it adapts to you. That line now runs from the homepage hero through every post.'],
+          ['who it’s for', ['Learners, who practise between lessons, not instead of them.', 'Parents, who see the progress without having to be the theory teacher.', 'Teachers, who get a shared Encore and their lesson time back.']],
         ],
       },
       {
