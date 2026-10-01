@@ -41,6 +41,15 @@ const AGENT_POSES = [['walk', 'walk'], ['idle', 'hello'], ['water', 'water ferna
   ['eat', 'lunch with you'], ['focus', 'focus with me'], ['cheer', 'i did a thing'], ['sleep', 'nap'], ['dangle', 'picked up'],
 ].map(([f, label]) => ({ src: `${P}ac-pose-${f}.png`, label }))
 
+/* carroto's adventures: the reels from @agentcarroto, as postcards in an envelope. add each new one as it's posted. */
+const A = './assets/adventures/'
+const ADVENTURES = [
+  ['01', 'hi. i’m carroto.'],
+  ['02', 'i can’t touch grass.'],
+  ['03', 'a field of grass, day 1'],
+  ['04', 'devday. i was here first.'],
+].map(([n, label]) => ({ type: 'post', label, poster: `${A}${n}.jpg`, video: `${A}${n}.mp4` }))
+
 /* the Bandroom app, a few screens to flick through on the phone in the evidence bag */
 const SCREENS = ['02', '03', '05', '06', '07', '10', '13'].map((n) => `./assets/app/${n}.jpg`)
 const Q = 2 // the question screen: tap an answer
@@ -222,6 +231,7 @@ const FOLDERS = {
     extras: [
       { type: 'tag', text: 'adopt carroto →', action: 'adopt', dx: 0.04, dy: 0.94, rot: -3 }, // opens the personal drawer's adoption papers
       { type: 'tag', text: 'his adventures: @agentcarroto ↗', href: 'https://www.instagram.com/agentcarroto/', dx: -0.6, dy: 0.28, rot: 4 },
+      { type: 'envelope', label: 'postcards from his adventures', contents: ADVENTURES, dx: 0.6, dy: 0.55, rot: -4 },
       { type: 'note', text: 'the one you can adopt is plain carroto. the glasses stay with me.', dx: 0.62, dy: 0.86, rot: -5 },
       {
         type: 'receipt', title: 'on his desk', clip: true, dx: 0.8, dy: 0.02, rot: 7,
