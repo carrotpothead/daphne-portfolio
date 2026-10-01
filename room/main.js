@@ -1,8 +1,10 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import { createDesk } from './desk.js'
 import { mountPet } from './pet.js'
+import { createVillage } from './village.js'
 
 /* ------------------------------------------------------------------ *
  *  Carrot room, step 1
@@ -39,7 +41,9 @@ const canvas = $('#c')
 // ?render=walk: export the carrot as frames for the dock pet (carroto). see renderPose() near the end.
 const RENDER = new URLSearchParams(location.search).get('render')
 // /meadow (or ?world=meadow): carroto's grass world. ?stage=1..4 shows how it was built, for filming.
-const WORLD = location.pathname.startsWith('/meadow') ? 'meadow' : new URLSearchParams(location.search).get('world')
+// /village (or ?world=village): the veggie village, his own little animal crossing. see village.js
+// (local dev server only for now: not public until their posts are out)
+const WORLD = !import.meta.env.DEV ? null : location.pathname.startsWith('/meadow') ? 'meadow' : location.pathname.startsWith('/village') ? 'village' : new URLSearchParams(location.search).get('world')
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: !!RENDER, preserveDrawingBuffer: !!RENDER })
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
 renderer.toneMapping = THREE.NeutralToneMapping
@@ -2140,7 +2144,7 @@ function updateArms(dt) {
 }
 
 function frame() {
-  const dt = RENDER ? 1 / REC.fps : Math.min(clock.getDelta(), 0.05)
+  const dt = RENDER ? 1 / REC.fps : window.__stepDt ?? Math.min(clock.getDelta(), 0.05)   // (__stepDt: ?debug's step(), for checking a scene while the tab is hidden)
   t += dt
   const now = performance.now()
 
@@ -2180,6 +2184,7 @@ function frame() {
   updateWalk(dt)
   if (RENDER) renderPose(dt)
   if (WORLD === 'meadow') updateMeadow(dt)
+  if (WORLD === 'village') updateVillage(dt)
   updateFamily(dt)
   updatePlant(dt)
   {
@@ -2334,6 +2339,7 @@ function frame() {
   camera.lookAt(camTarget)
   if (RENDER) renderShot()
   if (WORLD === 'meadow') meadowShot(dt)
+  if (WORLD === 'village') villageShot(dt)
 
   // keep the bubble on the carrot's head
   if (!bubble.hidden && WORLD) {
@@ -2898,15 +2904,18 @@ async function recordFrame() {
  *  InstancedMesh. The vertex shader bends every blade: wind (two waves
  *  rolling across the field) and a push away from his body and both hands,
  *  so the grass parts as he walks and bends under his fingers.
- *  ?stage=1 one blade · 2 a field · 3 + wind · 4 + it reacts to him (default)
+ *  ?stage=1 one blade · 2 a field (sprouts out of day 1's blade) · 3 + wind · 4 + it reacts to him (default)
+ *  &frolic: he runs, hops and spins through it (a bigger field so the edge never shows)
+ *  ?stage=5: + flowers. They bloom wherever he runs; then he flops down, rolls, and lies in a ring of them
  * ================================================================== */
-const MEADOW = { stage: Number(new URLSearchParams(location.search).get('stage') ?? 4), speed: 0, phase: 0, heading: 0,
+const MEADOW = { stage: Number(new URLSearchParams(location.search).get('stage') ?? 4), frolic: new URLSearchParams(location.search).has('frolic') || Number(new URLSearchParams(location.search).get('stage')) >= 5, speed: 0, phase: 0, heading: 0,
+  hopAt: -9, nextHop: 2.2, hops: 0, spin: false, rotBase: 0,
   keys: new Set(), lastKey: -99, cam: 'follow', grass: null, uniforms: null, camPos: new V3(), camLook: new V3() }
 if (WORLD === 'meadow') {
   document.title = 'the meadow'
   for (const o of [cab, plant, copier, key, keyGlint, ground, pool, can]) { o.visible = false; o.removeFromParent() }
   Object.assign(story, { introduced: true, revealed: true, revealAt: -60, flick: true, busy: true })
-  carrot.position.set(MEADOW.stage === 1 ? -2.4 : 0, 0, 0)
+  carrot.position.set(MEADOW.stage <= 2 ? -2.4 : 0, 0, 0)
   scene.fog = new THREE.Fog(BG_LIT, 7, 19)
   $('.hint').textContent = '( arrow keys to walk · h hides this )'
   // clean frame for recording: no logo or sound button up top; H hides the rest
@@ -2915,6 +2924,8 @@ if (WORLD === 'meadow') {
   cams.className = 'meadow-cams'
   cams.innerHTML = [['follow', '1 wide'], ['hand', '2 hand'], ['low', '3 low']].map(([k, l]) => `<button class="pill" data-cam="${k}" type="button">${l}</button>`).join('')
   document.body.appendChild(cams)
+  // &clean: start with the buttons and hint hidden (so a reload-and-record catches the first seconds clean); H brings them back
+  if (new URLSearchParams(location.search).has('clean')) { cams.style.display = 'none'; $('.hint').style.display = 'none' }
   const markCam = () => cams.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.cam === MEADOW.cam))
   cams.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { MEADOW.cam = b.dataset.cam; markCam(); b.blur() } })
   MEADOW.markCam = markCam
@@ -2942,13 +2953,15 @@ if (WORLD === 'meadow') {
   blade.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3))
   blade.computeVertexNormals()
 
-  const N = MEADOW.stage === 1 ? 1 : 42000, R = 11
+  const N = MEADOW.stage === 1 ? 1 : MEADOW.frolic ? 90000 : 42000, R = MEADOW.frolic ? 16 : 11
   const grassMat = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.75 })
   const U = { uTime: { value: 0 }, uBody: { value: new V3(0, 0, 99) }, uHandL: { value: new V3(0, -9, 0) }, uHandR: { value: new V3(0, -9, 0) },
-    uWind: { value: MEADOW.stage >= 3 ? 1 : 0 }, uPush: { value: MEADOW.stage >= 4 ? 1 : 0 } }
+    uWind: { value: MEADOW.stage >= 3 ? 1 : 0 }, uPush: { value: MEADOW.stage >= 4 ? 1 : 0 },
+    uGrow: { value: MEADOW.stage === 2 ? -1 : 99 }, uSeed: { value: new V3(-1.55, 0, 0.45) },
+    uBodyB: { value: new V3(0, 0, 99) }, uLie: { value: 0 } }
   grassMat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U)
-    sh.vertexShader = 'uniform float uTime, uWind, uPush; uniform vec3 uBody, uHandL, uHandR;\n' + sh.vertexShader.replace('#include <project_vertex>', `
+    sh.vertexShader = 'uniform float uTime, uWind, uPush, uGrow, uLie; uniform vec3 uBody, uBodyB, uHandL, uHandR, uSeed;\n' + sh.vertexShader.replace('#include <project_vertex>', `
       vec4 mvPosition = vec4(transformed, 1.0);
       #ifdef USE_INSTANCING
         mvPosition = instanceMatrix * mvPosition;
@@ -2959,6 +2972,14 @@ if (WORLD === 'meadow') {
         float bh = 1.0;
       #endif
       vec4 wp = modelMatrix * mvPosition;
+      #ifdef USE_INSTANCING
+        // stage 2: the field sprouts out of day 1's one blade (instance 0), a ring spreading outward
+        if (gl_InstanceID > 0) {
+          float u = uGrow - length(root.xz - uSeed.xz) / 5.0;
+          float gr = u <= 0.0 ? 0.0 : 1.0 - exp(-5.5 * u) * cos(9.0 * u);
+          wp.xyz = root + (wp.xyz - root) * vec3(clamp(gr, 0.0, 1.0), gr, clamp(gr, 0.0, 1.0));
+        }
+      #endif
       float h = clamp(position.y, 0.0, 1.0);
       float h2 = h * h;
       // wind: a slow swell plus a quicker ripple, rolling across the field
@@ -2967,14 +2988,18 @@ if (WORLD === 'meadow') {
       wp.z += g * 0.045 * uWind * h2;
       // he parts the grass: body (wide) and each hand (where it's low enough to reach the tips)
       vec2 push = vec2(0.0);
-      vec2 d = root.xz - uBody.xz;
-      push += normalize(d + 1e-4) * (1.0 - smoothstep(0.2, 0.62, length(d))) * 0.38;
+      // his body is a segment (feet → head): just his feet when standing, his whole length when lying down
+      vec2 ab = uBodyB.xz - uBody.xz;
+      vec2 d = root.xz - (uBody.xz + ab * clamp(dot(root.xz - uBody.xz, ab) / max(dot(ab, ab), 1e-4), 0.0, 1.0));
+      push += normalize(d + 1e-4) * (1.0 - smoothstep(0.2, 0.62 + 0.2 * uLie, length(d))) * 0.38;
+      float under = uLie * (1.0 - smoothstep(0.25, 0.7, length(d)));   // lying on it: pressed flat
       d = root.xz - uHandL.xz;
       push += normalize(d + 1e-4) * (1.0 - smoothstep(0.02, 0.3, length(d))) * (1.0 - smoothstep(bh - 0.05, bh + 0.25, uHandL.y)) * 0.26;
       d = root.xz - uHandR.xz;
       push += normalize(d + 1e-4) * (1.0 - smoothstep(0.02, 0.3, length(d))) * (1.0 - smoothstep(bh - 0.05, bh + 0.25, uHandR.y)) * 0.26;
       wp.xz += push * uPush * h2;
       wp.y -= length(push) * uPush * h2 * 0.45 * bh;   // bent blades get shorter, not stretched
+      wp.y -= under * h * bh * 0.85;
       mvPosition = viewMatrix * wp;
       gl_Position = projectionMatrix * mvPosition;`)
   }
@@ -2985,6 +3010,7 @@ if (WORLD === 'meadow') {
   const rnd = (i, k) => { const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x) }
   for (let i = 0; i < N; i++) {
     if (N === 1) { p3.set(0, -5, 0); e3.set(0, 0.4, 0); sc.set(1.4, 0.001, 1.4) } // stage 1: hidden until it sprouts
+    else if (i === 0 && MEADOW.stage === 2) { p3.copy(U.uSeed.value); e3.set(0, 0.4, 0); sc.set(1.4, 0.9, 1.4) } // day 1's blade
     else {
       const a = rnd(i, 1) * Math.PI * 2, r = Math.sqrt(rnd(i, 2)) * R
       p3.set(Math.cos(a) * r, 0, Math.sin(a) * r)
@@ -2999,6 +3025,73 @@ if (WORLD === 'meadow') {
   scene.add(grass)
   MEADOW.grass = grass; MEADOW.uniforms = U
 
+  // stage 5: flowers. Hidden until they bloom (aBloom = the time each one opens), then they pop up and sway with the wind
+  if (MEADOW.stage >= 5) {
+    const NF = 7000
+    const tint = (g, c) => { const col = new THREE.Color(c), a = []; for (let i = 0; i < g.attributes.position.count; i++) a.push(col.r, col.g, col.b); g.setAttribute('color', new THREE.Float32BufferAttribute(a, 3)); return g }
+    const petals = []
+    for (let k = 0; k < 6; k++) {
+      const g = new THREE.SphereGeometry(0.066, 10, 6); g.scale(1, 0.22, 0.6); g.translate(0, 0, 0.078); g.rotateX(-0.25); g.rotateY((k * Math.PI) / 3)
+      petals.push(g)
+    }
+    const headGeo = mergeGeometries(petals); headGeo.rotateX(0.75).translate(0, 0.98, 0)   // heads tilted, facing out like real flowers
+    const stem = tint(new THREE.CylinderGeometry(0.009, 0.014, 0.98, 5).translate(0, 0.49, 0).deleteAttribute('uv'), '#4f8a34')
+    const eye = tint(new THREE.SphereGeometry(0.04, 10, 8).scale(1, 0.6, 1).rotateX(0.75).translate(0, 0.99, 0).deleteAttribute('uv'), '#f6b72a')
+    const bodyGeo = mergeGeometries([stem, eye])
+    headGeo.deleteAttribute('uv')
+    const bloom = new THREE.InstancedBufferAttribute(new Float32Array(NF).fill(1e6), 1)
+    headGeo.setAttribute('aBloom', bloom); bodyGeo.setAttribute('aBloom', bloom)
+    const FU = { uTime: U.uTime, uWind: U.uWind }
+    const grow = (m) => {
+      m.onBeforeCompile = (sh) => {
+        Object.assign(sh.uniforms, FU)
+        sh.vertexShader = 'attribute float aBloom; uniform float uTime, uWind;\n' + sh.vertexShader.replace('#include <begin_vertex>', `
+          #include <begin_vertex>
+          float fu = uTime - aBloom;
+          transformed *= fu <= 0.0 ? 0.0 : 1.0 - exp(-6.0 * fu) * cos(10.0 * fu);   // pops open, overshoots, settles
+          float fh = clamp(position.y / 0.98, 0.0, 1.0);
+          vec2 fr = vec2(instanceMatrix[3][0], instanceMatrix[3][2]);
+          float fw = sin(uTime * 1.25 + fr.x * 0.45 + fr.y * 0.3) * 0.7 + sin(uTime * 2.9 + fr.x * 1.6 - fr.y * 1.2) * 0.25;
+          transformed.x += fw * 0.08 * uWind * fh * fh;`)
+      }
+      return m
+    }
+    const heads = new THREE.InstancedMesh(headGeo, grow(new THREE.MeshStandardMaterial({ roughness: 0.6 })), NF)
+    const bodies = new THREE.InstancedMesh(bodyGeo, grow(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 })), NF)
+    const PAL = ['#ffffff', '#fff6e0', '#ffd6e3', '#ffb3c7', '#ffe27a', '#d9c8ff', '#2338d4']
+    const where = []
+    for (let i = 0; i < NF; i++) {
+      const a = rnd(i, 21) * Math.PI * 2, r = Math.sqrt(rnd(i, 22)) * (R - 1.5)
+      p3.set(Math.cos(a) * r, 0, Math.sin(a) * r); where.push(p3.clone())
+      const k = 0.85 + rnd(i, 23) * 0.4
+      m4.compose(p3, q.setFromEuler(e3.set((rnd(i, 24) - 0.5) * 0.3, rnd(i, 25) * Math.PI * 2, (rnd(i, 26) - 0.5) * 0.3)), sc.set(k, k, k))
+      heads.setMatrixAt(i, m4); bodies.setMatrixAt(i, m4)
+      heads.setColorAt(i, col.set(PAL[Math.floor(rnd(i, 27) * (rnd(i, 28) < 0.06 ? PAL.length : PAL.length - 1))]))
+    }
+    for (const f of [heads, bodies]) { f.frustumCulled = false; f.castShadow = false; f.receiveShadow = true; scene.add(f) }
+    // open every flower within `radius` of p that hasn't opened yet (a little later the further away it is)
+    MEADOW.bloomNear = (p, radius, spread = 0.15, jitter = 0.25) => {
+      let any = false
+      for (let i = 0; i < NF; i++) {
+        if (bloom.array[i] < 1e5) continue
+        const d = Math.hypot(where[i].x - p.x, where[i].z - p.z)
+        if (d < radius) { bloom.array[i] = t + d * spread + rnd(i, 29) * jitter; any = true }
+      }
+      if (any) bloom.needsUpdate = true
+    }
+    // none growing through him while he lies there: clear the ones along his body (feet → head)
+    MEADOW.clearUnder = (a, b, radius) => {
+      let any = false
+      const ab = b.clone().sub(a), L2 = ab.lengthSq()
+      for (let i = 0; i < NF; i++) {
+        if (bloom.array[i] > 1e5) continue
+        const w = where[i], k = Math.max(0, Math.min(1, ((w.x - a.x) * ab.x + (w.z - a.z) * ab.z) / L2))
+        if (Math.hypot(w.x - (a.x + ab.x * k), w.z - (a.z + ab.z * k)) < radius) { bloom.array[i] = 1e6; any = true }
+      }
+      if (any) bloom.needsUpdate = true
+    }
+  }
+
   addEventListener('keydown', (e) => {
     const k = e.key.toLowerCase()
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k)) { MEADOW.keys.add(k); MEADOW.lastKey = t; e.preventDefault() }
@@ -3010,7 +3103,10 @@ if (WORLD === 'meadow') {
     if (k === 'h') { const on = cams.style.display === 'none'; cams.style.display = on ? '' : 'none'; $('.hint').style.display = on ? '' : 'none' }
   })
   addEventListener('keyup', (e) => MEADOW.keys.delete(e.key.toLowerCase()))
-  if (MEADOW.stage > 1) setTimeout(() => say('touched grass.', { mood: 'happy', hold: 2200 }), 1800)
+  if (MEADOW.stage > 2 && !MEADOW.frolic) setTimeout(() => say('touched grass.', { mood: 'happy', hold: 2200 }), 1800)
+  if (MEADOW.frolic && MEADOW.stage < 5) setTimeout(() => say('okay. running now.', { mood: 'happy', hold: 1600 }), 900)
+  if (MEADOW.stage >= 5) setTimeout(() => say('wait. am i doing that?', { mood: 'shock', hold: 1800 }), 4200)
+  if (MEADOW.stage === 2) { MEADOW.bladeAt = U.uSeed.value.clone(); MEADOW.W2 = [[0.6, -1.4], [-1.0, -2.0], [-2.35, 0.0]] }
 }
 
 function updateMeadow(dt) {
@@ -3039,18 +3135,51 @@ function updateMeadow(dt) {
       vx = vz = 0
     }
   }
+  // stage 2: a wander of the bare field (like day 1), back to his one blade, a sulk… then the whole field bursts out of it
+  if (MEADOW.stage === 2) {
+    const home = MEADOW.W2[MEADOW.W2.length - 1]
+    // (by time, not only by arriving: back at his blade, or 11s in wherever he got to)
+    if (!MEADOW.sulkAt && !MEADOW.grew && ((t > 5 && Math.hypot(carrot.position.x - home[0], carrot.position.z - home[1]) < 0.6) || t > 11)) {
+      MEADOW.sulkAt = t; mood('sulk'); squash.vel -= 3
+    }
+    if (MEADOW.sulkAt && !MEADOW.grew) {
+      const d = MEADOW.bladeAt.clone().sub(carrot.position)
+      MEADOW.heading = Math.atan2(d.x, d.z)
+      vx = vz = 0; MEADOW.keys.clear(); MEADOW.lastKey = t - 4
+    }
+    if (!MEADOW.grew && t >= (MEADOW.sulkAt ?? Infinity) + 2.8) {
+      MEADOW.grew = t
+      squash.vel += 6; mood('shock'); sfx.pip?.()
+      setTimeout(() => say('touched grass.', { mood: 'happy', hold: 2600 }), 2600)
+    }
+    MEADOW.uniforms.uGrow.value = MEADOW.grew ? t - MEADOW.grew : -1
+    MEADOW.hold = !!MEADOW.sulkAt && (!MEADOW.grew || t - MEADOW.grew < 2.2)
+    if (MEADOW.hold) {
+      MEADOW.heading = Math.atan2(0.3, 1)   // stops and turns to watch it roll out toward the camera
+      vx = vz = 0; MEADOW.keys.clear(); MEADOW.lastKey = t - 4
+    }
+  }
   // nobody driving: he wanders the meadow on his own (a slow loop), so it films itself
-  if (!vx && !vz && t - MEADOW.lastKey > 4 && (MEADOW.stage > 1 || !MEADOW.sprouted)) {
+  // stage 5 finale: he stops, flops down, rolls, and ends up on his back
+  const FIN = 12.5
+  if (MEADOW.stage >= 5 && t >= FIN) {
+    if (MEADOW.fin == null) { MEADOW.finFrom = carrot.position.clone().setY(0); mood('shock') }
+    MEADOW.fin = t - FIN; vx = vz = 0; MEADOW.keys.clear(); MEADOW.lastKey = t - 4
+  }
+  if (!vx && !vz && t - MEADOW.lastKey > 4 && !MEADOW.hold && MEADOW.fin == null && (MEADOW.stage > 1 || !MEADOW.sprouted)) {
     const a = t * 0.12
     let goal
-    if (MEADOW.stage === 1) {
+    if (MEADOW.stage === 1 || (MEADOW.stage === 2 && !MEADOW.grew)) {
       // a wander across the bare field: out, around, back toward the camera
-      const WP = [[1.4, -1.0], [-0.6, -2.2], [-2.0, -0.6], [0.4, 0.9], [2.0, 0.3]]
+      // (stage 2: a shorter loop that ends back beside his blade)
+      const WP = MEADOW.stage === 2 ? MEADOW.W2 : [[1.4, -1.0], [-0.6, -2.2], [-2.0, -0.6], [0.4, 0.9], [2.0, 0.3]]
       MEADOW.wp ??= 0
+      if (MEADOW.stage === 2 && t > 5) MEADOW.wp = WP.length - 1   // 5s in: head back to the blade
       const w = WP[Math.min(MEADOW.wp, WP.length - 1)]
       goal = new V3(w[0], 0, w[1])
       if (goal.distanceTo(carrot.position) < 0.25 && MEADOW.wp < WP.length - 1) MEADOW.wp++
-    } else goal = new V3(Math.sin(a) * 3.2, 0, Math.sin(a * 2) * 1.6)
+    } else if (MEADOW.frolic) { const b = t * 0.3; goal = new V3(Math.sin(b) * 5, 0, Math.sin(b * 2) * 2.6).add(new V3(Math.cos(b) * 1.2, 0, Math.cos(b * 2) * 1.2)) }   // a big figure-eight, always a little ahead of him
+    else goal = new V3(Math.sin(a) * 3.2, 0, Math.sin(a * 2) * 1.6)
     const d = goal.sub(carrot.position)
     if (d.length() > 0.15) { vx = d.x; vz = d.z }
   }
@@ -3059,29 +3188,78 @@ function updateMeadow(dt) {
   MEADOW.speed = damp(MEADOW.speed, moving ? 1 : 0, 5, dt)
   if (moving) {
     vx /= len; vz /= len
-    carrot.position.x += vx * dt * 1.1 * MEADOW.speed
-    carrot.position.z += vz * dt * 1.1 * MEADOW.speed
+    const run = MEADOW.frolic ? 2.5 : 1.1
+    carrot.position.x += vx * dt * run * MEADOW.speed
+    carrot.position.z += vz * dt * run * MEADOW.speed
     MEADOW.heading = Math.atan2(vx, vz)
   }
   const pr = Math.hypot(carrot.position.x, carrot.position.z)
-  if (pr > 8) carrot.position.multiplyScalar(8 / pr)   // stays in the meadow
-  let dh = MEADOW.heading - carrot.rotation.y
+  if (pr > (MEADOW.frolic ? 11 : 8)) carrot.position.multiplyScalar((MEADOW.frolic ? 11 : 8) / pr)   // stays in the meadow
+  let dh = MEADOW.heading - MEADOW.rotBase
   dh = Math.atan2(Math.sin(dh), Math.cos(dh))
-  carrot.rotation.y += dh * (1 - Math.exp(-7 * dt))
-  // legs and a little bob, like the dock walk
+  MEADOW.rotBase += dh * (1 - Math.exp(-7 * dt))
+  // frolic: every so often a hop; every fourth hop is a big one with a spin, arms up
+  let hopY = 0, spinY = 0, u = 99
+  if (MEADOW.frolic) {
+    if (moving && MEADOW.speed > 0.8 && t >= MEADOW.nextHop && MEADOW.fin == null) {
+      MEADOW.hopAt = t; MEADOW.hops++
+      MEADOW.spin = MEADOW.hops % 4 === 3
+      MEADOW.nextHop = t + (MEADOW.spin ? 1.6 : 1.0 + ((MEADOW.hops * 0.37) % 0.8))
+      if (MEADOW.spin) { mood('shock'); if (!MEADOW.wheee) { MEADOW.wheee = true; say('wheee!', { mood: 'shock', hold: 900 }) } }
+    }
+    const dur = MEADOW.spin ? 0.8 : 0.42
+    u = (t - MEADOW.hopAt) / dur
+    if (u >= 0 && u < 1) {
+      hopY = Math.sin(Math.PI * u) * (MEADOW.spin ? 0.5 : 0.26)
+      if (MEADOW.spin) { const e = u * u * (3 - 2 * u); spinY = e * Math.PI * 2 }
+    } else if (u >= 1 && !MEADOW.landed) { MEADOW.landed = true; squash.vel += MEADOW.spin ? 7 : 4; if (MEADOW.spin) setTimeout(() => mood('happy'), 250) }
+    if (u < 1) MEADOW.landed = false
+    if (MEADOW.hops === 9 && !MEADOW.best && MEADOW.stage < 5) { MEADOW.best = true; setTimeout(() => say('best. day. ever.', { mood: 'happy', hold: 1800 }), 700) }
+  }
+  carrot.position.y = hopY
+  carrot.rotation.y = MEADOW.rotBase + spinY
+  // flowers bloom in his wake
+  if (MEADOW.bloomNear && MEADOW.fin == null && MEADOW.speed > 0.3 && t > 2) MEADOW.bloomNear(carrot.position, 1.7, 0.3, 0.35)
+  if (MEADOW.fin != null) {
+    const f = MEADOW.fin, R = 0.42, e = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x) }
+    const lie = e((f - 0.25) / 0.4), roll = Math.PI * 2.5 * e((f - 0.7) / 2.3)   // flop, then 1¼ turns: ends face-up
+    const yaw = MEADOW.rotBase
+    const away = new V3(-Math.sin(yaw), 0, -Math.cos(yaw))
+    carrot.position.copy(MEADOW.finFrom).addScaledVector(away, R * roll).setY(R * lie)
+    carrot.quaternion.setFromAxisAngle(new V3(0, 1, 0), yaw)
+      .multiply(new THREE.Quaternion().setFromAxisAngle(new V3(0, 0, 1), lie * Math.PI / 2))
+      .multiply(new THREE.Quaternion().setFromAxisAngle(new V3(0, 1, 0), roll))
+    if (f > 0.7 && !MEADOW.flopped) { MEADOW.flopped = true; squash.vel += 5 }
+    if (f > 0.4) { const feet = carrot.position.clone().setY(0); MEADOW.clearUnder?.(feet, feet.clone().add(new V3(-Math.cos(yaw), 0, Math.sin(yaw)).multiplyScalar(1.6)), 0.6) }
+    if (f > 3.0 && !MEADOW.ring) { MEADOW.ring = true; mood('happy'); MEADOW.bloomNear?.(carrot.position, 4.5, 0.2, 0.3) }
+    if (f > 3.6 && !MEADOW.nice) { MEADOW.nice = true; say('…okay. this is nice.', { mood: 'happy', hold: 2600 }); setTimeout(() => mood('sleepy'), 3200) }
+  }
+  // legs and a bob, like the dock walk (a run when frolicking)
   const sp = MEADOW.speed
-  MEADOW.phase += dt * sp * Math.PI * 2 * 1.5
+  const F = MEADOW.frolic
+  MEADOW.phase += dt * sp * Math.PI * 2 * (F ? 2.6 : 1.5)
+  const air = hopY > 0.02
   for (const L of legs) {
     const ph = MEADOW.phase + (L.side > 0 ? 0 : Math.PI)
-    L.lift = Math.max(0, Math.sin(ph)) * 0.08 * sp; L.swing = Math.cos(ph) * 0.07 * sp; L.out = 0; L.knee = 0
+    L.lift = air ? 0.1 + (L.side > 0 ? 0.03 : 0) : Math.max(0, Math.sin(ph)) * (F ? 0.13 : 0.08) * sp
+    L.swing = air ? (L.side > 0 ? 0.1 : -0.06) : Math.cos(ph) * (F ? 0.13 : 0.07) * sp
+    L.out = 0; L.knee = air ? 0.03 : 0
   }
-  torso.position.y = BY + Math.abs(Math.sin(MEADOW.phase)) * 0.035 * sp
-  pose(MEADOW.stage >= 4 ? 'brush' : 'rest')
+  torso.position.y = BY + Math.abs(Math.sin(MEADOW.phase)) * (F ? 0.07 : 0.035) * sp
+  if (F) {
+    torso.rotation.x = 0.13 * sp                                   // leaning into the run
+    torso.rotation.z = Math.sin(MEADOW.phase) * 0.06 * sp
+  }
+  pose(MEADOW.fin != null ? 'wide' : F && MEADOW.spin && u < 1.3 ? 'yogaUp' : F && air ? 'wide' : MEADOW.stage >= 4 ? 'brush' : 'rest')
   // tell the grass where he and his hands are
   const U = MEADOW.uniforms
   if (U) {
     U.uTime.value = t
     U.uBody.value.copy(carrot.position)
+    // lying down (stage 5 finale): the grass knows about his whole body, feet to head
+    const lie = MEADOW.fin != null ? Math.min(1, Math.max(0, (MEADOW.fin - 0.25) / 0.4)) : 0
+    U.uLie.value = lie
+    U.uBodyB.value.copy(carrot.position).addScaledVector(new V3(-Math.cos(MEADOW.rotBase), 0, Math.sin(MEADOW.rotBase)), 1.6 * lie)
     U.uHandL.value.copy(torso.localToWorld(arms[0].hand.clone()))
     U.uHandR.value.copy(torso.localToWorld(arms[1].hand.clone()))
   }
@@ -3089,11 +3267,11 @@ function updateMeadow(dt) {
   sun.target.position.copy(carrot.position)
   sun.position.copy(carrot.position).add(new V3(-3.5, 7, 6))
   // eyes: out over the field, or down at his hand in the close-up
-  lookOverride = MEADOW.sprouted ? MEADOW.bladeAt.clone().add(new V3(0, 0.6, 0)) : MEADOW.cam === 'hand' ? U.uHandR.value.clone() : carrot.localToWorld(new V3(0, 1.5, 4)); lookUntil = Infinity
+  lookOverride = MEADOW.fin != null ? camera.position.clone() : MEADOW.sprouted || (MEADOW.sulkAt && !MEADOW.grew) ? MEADOW.bladeAt.clone().add(new V3(0, 0.6, 0)) : MEADOW.cam === 'hand' ? U.uHandR.value.clone() : carrot.localToWorld(new V3(0, 1.5, 4)); lookUntil = Infinity
 }
 
 function meadowShot(dt) {
-  const c = carrot.position
+  const c = MEADOW.frolic ? new V3(carrot.position.x, 0, carrot.position.z) : carrot.position   // (hops don't bob the camera)
   let pos, look
   if (MEADOW.stage === 1 && MEADOW.cam === 'follow' && MEADOW.sprouted) {
     // after the sprout: frame him and his one blade together
@@ -3106,13 +3284,240 @@ function meadowShot(dt) {
     const side = new V3(Math.cos(carrot.rotation.y), 0, -Math.sin(carrot.rotation.y))
     pos = hand.clone().addScaledVector(side, 0.9).add(new V3(0, -0.05, 0)).addScaledVector(new V3(Math.sin(carrot.rotation.y), 0, Math.cos(carrot.rotation.y)), 0.9)
     look = hand.clone().add(new V3(0, -0.08, 0))
+  } else if (MEADOW.fin != null && MEADOW.cam === 'follow') {
+    // the finale: craning up to look down at him lying in the flowers
+    // (aimed at the middle of him: lying down, his body runs from his feet along the body axis)
+    const up = Math.min(1, MEADOW.fin / 3), yaw = MEADOW.rotBase
+    const mid = c.clone().addScaledVector(new V3(-Math.cos(yaw), 0, Math.sin(yaw)), 0.75 * Math.min(1, MEADOW.fin / 0.8))
+    pos = mid.clone().add(new V3(0.6, 3 + 5.6 * up, 5.5 - 2.4 * up)); look = mid
+  } else if (MEADOW.frolic && MEADOW.cam === 'follow') {
+    // frolic: the camera runs ahead of him, looking back, so we see his face (and the grass parting behind him)
+    let dy = MEADOW.rotBase - (MEADOW.camYaw ?? MEADOW.rotBase)
+    dy = Math.atan2(Math.sin(dy), Math.cos(dy))
+    MEADOW.camYaw = (MEADOW.camYaw ?? MEADOW.rotBase) + dy * (1 - Math.exp(-1.6 * dt))
+    const h = MEADOW.camYaw, fwd = new V3(Math.sin(h), 0, Math.cos(h)), side = new V3(Math.cos(h), 0, -Math.sin(h))
+    pos = c.clone().addScaledVector(fwd, 10.5).addScaledVector(side, 1.8).add(new V3(0, 3.0, 0)); look = c.clone().add(new V3(0, 0.95, 0))
   } else if (MEADOW.cam === 'low') { pos = c.clone().add(new V3(1.2, 0.55, 6.5)); look = c.clone().add(new V3(0, 1.0, 0)) }
   else { pos = c.clone().add(new V3(4.2, 3.2, 10.5)); look = c.clone().add(new V3(0, 0.8, 0)) }
-  const k = 1 - Math.exp(-4 * dt)
+  const k = 1 - Math.exp(-(MEADOW.fin != null ? 2.2 : MEADOW.frolic ? 10 : 4) * dt)   // keeps up with him when he's running
   if (MEADOW.camPos.lengthSq() === 0) { MEADOW.camPos.copy(pos); MEADOW.camLook.copy(look) }
   MEADOW.camPos.lerp(pos, k); MEADOW.camLook.lerp(look, k)
   camera.position.copy(MEADOW.camPos)
   camera.lookAt(MEADOW.camLook)
+}
+
+/* ================================================================== *
+ *  THE VILLAGE (/village): his own little animal crossing. village.js builds
+ *  the place (v1: his house and front garden); here he walks around it:
+ *  arrow keys or click to walk, bumping into the house, fence posts, bushes.
+ *  On load: the door opens, he steps out, looks back at it. "…i built a house."
+ *  The house story, for filming: ?house=box (the first one my human built him; he hates it)
+ *  and ?house=build (the new one draws itself as a wireframe, then paints in; he goes inside).
+ *  ?story: the whole house story in one go. The cottage builds itself; its door's too short (bonk);
+ *  he smashes it, clash of clans style; "i'm going on pinterest."; the potato-stick house builds on
+ *  the rubble; he loves it; he goes in. ?story=2 starts at the potato-stick house.
+ * ================================================================== */
+const VIL = { house: new URLSearchParams(location.search).has('story') ? 'story' : new URLSearchParams(location.search).get('house') || 'cottage', ch: new URLSearchParams(location.search).get('story') === '2' ? 2 : 1, S: {}, speed: 0, phase: 0, heading: 0, keys: new Set(), lastKey: -99, goal: null, camPos: new V3(), camLook: new V3(), intro: !new URLSearchParams(location.search).has('skip') }
+let village = null
+if (WORLD === 'village') {
+  document.title = 'the village'
+  for (const o of [cab, plant, copier, key, keyGlint, ground, pool, can]) { o.visible = false; o.removeFromParent() }
+  Object.assign(story, { introduced: true, revealed: true, revealAt: -60, flick: true, busy: true })
+  renderer.localClippingEnabled = true
+  village = createVillage({ scene, mat, mesh, canvasTex, variant: VIL.house === 'build' ? 'cottage' : VIL.house, build: VIL.house === 'build' })
+  const front = village.doorstep.clone().add(new V3(0.9, 0, 1.3))
+  carrot.position.copy(VIL.intro && VIL.house === 'cottage' ? village.inside : VIL.house === 'build' || VIL.house === 'story' ? new V3(2.2, 0, 1.2) : front)
+  scene.fog = new THREE.Fog(BG_LIT, 20, 48)
+  camera.fov = 30; camera.updateProjectionMatrix()
+  Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -7, far: 40 }); sun.shadow.camera.updateProjectionMatrix()
+  scene.add(sun.target)
+  $('.top').style.display = 'none'
+  $('.hint').textContent = '( arrow keys or click to walk · h hides this )'
+  if (new URLSearchParams(location.search).has('clean')) $('.hint').style.display = 'none'
+  addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase()
+    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k)) { VIL.keys.add(k); VIL.lastKey = t; VIL.goal = null; VIL.intro = false; e.preventDefault() }
+    if (k === 'h') { const h = $('.hint'); h.style.display = h.style.display === 'none' ? '' : 'none' }
+  })
+  addEventListener('keyup', (e) => VIL.keys.delete(e.key.toLowerCase()))
+  // click the ground: he walks there
+  const rc = new THREE.Raycaster(), floor = new THREE.Plane(new V3(0, 1, 0), 0)
+  canvas.addEventListener('pointerdown', (e) => {
+    const r = canvas.getBoundingClientRect()
+    rc.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera)
+    const p = rc.ray.intersectPlane(floor, new V3())
+    if (p && p.length() < 30) { VIL.goal = p; VIL.intro = false; VIL.lastKey = t }
+  })
+}
+
+// keep him out of solid things: push him back out of the house box and round things
+function villageCollide(p, loose = false) {
+  const R = 0.34
+  for (const o of village.solids) {
+    if (o.kind === 'box') {
+      if (loose) continue                                // (being knocked back off the door)
+      const dx = p.x - o.x, dz = p.z - o.z, ox = o.hw + R - Math.abs(dx), oz = o.hd + R - Math.abs(dz)
+      if (ox > 0 && oz > 0) { if (ox < oz) p.x += Math.sign(dx) * ox; else p.z += Math.sign(dz) * oz }
+    } else {
+      const dx = p.x - o.x, dz = p.z - o.z, d = Math.hypot(dx, dz), m = o.r + R
+      if (d < m && d > 1e-4) { p.x = o.x + dx / d * m; p.z = o.z + dz / d * m }
+    }
+  }
+  // the picket fence: the front line (except the gate gap) and the two sides
+  const GZ = village.gateZ
+  if (Math.abs(p.x) < 4.8 && Math.abs(p.x) > 0.6 && Math.abs(p.z - GZ) < R) p.z = GZ + Math.sign(p.z - GZ || 1) * R
+  if (p.z < GZ && p.z > -1.8 && Math.abs(Math.abs(p.x) - 4.62) < R) p.x = Math.sign(p.x) * (4.62 + Math.sign(Math.abs(p.x) - 4.62 || -1) * R)
+}
+
+function updateVillage(dt) {
+  const K = VIL.keys
+  let vx = (K.has('arrowright') || K.has('d') ? 1 : 0) - (K.has('arrowleft') || K.has('a') ? 1 : 0)
+  let vz = (K.has('arrowdown') || K.has('s') ? 1 : 0) - (K.has('arrowup') || K.has('w') ? 1 : 0)
+  let look = null
+  const faceHouse = () => { const h = new V3(0, 1.6, -1.6).sub(carrot.position); VIL.heading = Math.atan2(h.x, h.z); return new V3(0, 2.2, -1.6) }
+  // the box: he looks at it. he's not impressed.
+  if (VIL.intro && VIL.house === 'box') {
+    look = faceHouse()
+    if (t > 1.4 && !VIL.said1) { VIL.said1 = true; mood('shock'); say('…', { hold: 900 }) }
+    if (t > 3.0 && !VIL.said2) { VIL.said2 = true; say("it's a box.", { mood: 'sulk', hold: 2200 }) }
+    if (t > 5.8) { VIL.heading = 0.2; look = null; if (!VIL.said3) { VIL.said3 = true; say("i'm going on pinterest.", { mood: 'sulk', hold: 2400 }) } }
+    if (t > 9) VIL.intro = false
+  }
+  // the build: a wireframe draws itself, then paints in. he likes this one. he goes in.
+  if (VIL.intro && VIL.house === 'build') {
+    look = faceHouse()
+    const B = village.BUILD, b0 = 1.2
+    if (!VIL.started && t > b0) { VIL.started = true; village.startBuild('cottage', b0) }
+    if (t > b0 + 0.6 && !VIL.said1) { VIL.said1 = true; say("wait. what's that?", { mood: 'shock', hold: 2000 }) }
+    if (t > b0 + B.sweepAt + 0.6 && !VIL.said2) { VIL.said2 = true; mood('shock'); squash.vel += 4; say('oh.', { mood: 'shock', hold: 1200 }) }
+    const done = b0 + B.sweepAt + B.sweep
+    if (t > done + 0.8 && !VIL.said3) { VIL.said3 = true; say('…okay. i like this one.', { mood: 'happy', hold: 2400 }) }
+    if (t > done + 3.6) {
+      look = null
+      if (!VIL.goIn) { VIL.goIn = true; VIL.goal = village.doorstep.clone() }
+      if (VIL.goIn === true && !VIL.goal) { VIL.goIn = 'in'; VIL.goal = village.inside.clone().add(new V3(0, 0, -0.6)) }
+      village.forceDoor = t < done + 7.4
+      VIL.homeInside = true
+    }
+    if (t > done + 8.5) VIL.intro = false
+  }
+  if (VIL.intro && VIL.house === 'story') look = villageStory(faceHouse)
+  // the opening: door opens, out he comes, turns back to look at it
+  if (VIL.intro && VIL.house === 'cottage') {
+    village.forceDoor = t > 0.6 && t < 3.2
+    if (t > 1.1 && !VIL.introWalk) { VIL.introWalk = true; VIL.goal = village.doorstep.clone().add(new V3(0.9, 0, 1.3)) }
+    if (t > 3.4) {
+      const h = new V3(0, 1.6, -1.6).sub(carrot.position)
+      VIL.heading = Math.atan2(h.x, h.z); look = new V3(0, 2.2, -1.6)
+      if (!VIL.said1) { VIL.said1 = true; say('…i built a house.', { mood: 'happy', hold: 2200 }) }
+    }
+    if (t > 6.4) {
+      VIL.heading = 0.25; look = null
+      if (!VIL.said2) { VIL.said2 = true; say('it has a door.', { mood: 'smug', hold: 2000 }) }
+    }
+    if (t > 9) VIL.intro = false
+  }
+  if (VIL.goal) {
+    const d = VIL.goal.clone().sub(carrot.position).setY(0)
+    if (d.length() > 0.12) { vx = d.x; vz = d.z } else VIL.goal = null
+  }
+  const len = Math.hypot(vx, vz), moving = len > 0.01
+  VIL.speed = damp(VIL.speed, moving ? 1 : 0, 6, dt)
+  VIL.hop = Math.max(0, (VIL.hop ?? 0) - dt)
+  if (moving) {
+    vx /= len; vz /= len
+    carrot.position.x += vx * dt * 1.4 * VIL.speed
+    carrot.position.z += vz * dt * 1.4 * VIL.speed
+    VIL.heading = Math.atan2(vx, vz)
+  }
+  if (VIL.homeInside && !VIL.intro && carrot.position.z > village.doorstep.z + 0.4) VIL.homeInside = false   // he's walked back out
+  if (!(VIL.intro && VIL.house === 'cottage' && t < 3) && !VIL.homeInside) villageCollide(carrot.position, VIL.house === 'story' && VIL.S.bonk && !VIL.S.back)     // (walking through his door, he's allowed through the wall)
+  const pr = Math.hypot(carrot.position.x, carrot.position.z)
+  if (pr > 18) carrot.position.multiplyScalar(18 / pr)
+  let dh = VIL.heading - carrot.rotation.y
+  dh = Math.atan2(Math.sin(dh), Math.cos(dh))
+  carrot.rotation.y += dh * (1 - Math.exp(-8 * dt))
+  const sp = VIL.speed
+  VIL.phase += dt * sp * Math.PI * 2 * 1.6
+  for (const L of legs) {
+    const ph = VIL.phase + (L.side > 0 ? 0 : Math.PI)
+    L.lift = Math.max(0, Math.sin(ph)) * 0.08 * sp; L.swing = Math.cos(ph) * 0.08 * sp; L.out = 0; L.knee = 0
+  }
+  torso.position.y = BY + Math.abs(Math.sin(VIL.phase)) * 0.04 * sp
+  // a stomp (a hop up, a slam down), and the bonk (knocked back a step)
+  carrot.position.y = VIL.hop > 0 ? Math.sin(Math.PI * (1 - VIL.hop / 0.5)) * 0.55 : 0
+  if (VIL.knock > 0) { carrot.position.z += VIL.knock * dt * 3; VIL.knock = Math.max(0, VIL.knock - dt * 2) }
+  pose('rest')
+  sun.target.position.copy(carrot.position)
+  sun.position.copy(carrot.position).add(new V3(-5, 10, 8))
+  lookOverride = look || carrot.localToWorld(new V3(0, 1.5, 4)); lookUntil = Infinity
+  village.shut = VIL.homeInside && !VIL.forceOpen && !village.forceDoor && !moving && !VIL.goal   // home: the door shuts behind him; walk out and it opens
+  village.update(t, dt, carrot.position)
+}
+
+// the whole house story, one beat at a time (each fires once; some wait for him to arrive somewhere)
+function villageStory(faceHouse) {
+  const S = VIL.S, B = village.BUILD, once = (k, f) => { if (!S[k]) { S[k] = t; f?.() } return S[k] }
+  const since = (k) => (S[k] ? t - S[k] : -1)
+  let look = null
+  if (VIL.ch === 1) {
+    // 1. the cottage draws itself
+    look = faceHouse()
+    if (t > 1.2) once('build1', () => village.startBuild('cottage', t))
+    if (since('build1') > 0.6) once('what', () => say("wait. what's that?", { mood: 'shock', hold: 2000 }))
+    if (since('build1') > B.sweepAt + 0.6) once('oh', () => { mood('shock'); squash.vel += 4; say('oh.', { mood: 'shock', hold: 1200 }) })
+    if (village.built('cottage')) once('built1')
+    if (since('built1') > 0.8) once('forme', () => say('…a house? for me?', { mood: 'happy', hold: 2000 }))
+    // 2. up to the door… bonk
+    if (since('built1') > 3.2) once('go', () => { VIL.goal = village.doorstep.clone().add(new V3(0, 0, 0.05)) })
+    if (S.go && !VIL.goal && !S.bonk) once('bonk', () => { squash.vel -= 7; VIL.knock = 0.35; mood('shock'); sfx.pip?.(); say('ow.', { mood: 'shock', hold: 1100 }) })
+    if (S.bonk) look = null
+    if (since('bonk') > 1.5) once('short', () => say("the door's too short.", { mood: 'sulk', hold: 2200 }))
+    // 3. he steps back… and smashes it
+    if (since('bonk') > 4.2) once('back', () => { VIL.goal = new V3(0.4, 0, 1.6) })
+    if (S.back && !VIL.goal) { once('square'); look = faceHouse() }
+    if (since('square') > 0.5) once('glare', () => { mood('sulk'); say('…', { hold: 900 }) })
+    if (since('square') > 1.8) once('stomp', () => { VIL.hop = 0.5 })
+    if (since('square') > 2.3) once('smash', () => { squash.vel += 9; village.smash(t) })
+    if (since('smash') > 2.2) once('better', () => say('…better.', { mood: 'smug', hold: 1800 }))
+    if (since('smash') > 4.4) { VIL.heading = 0.2; look = null; once('pin', () => say("i'm going on pinterest.", { mood: 'happy', hold: 2400 })) }
+    if (since('smash') > 7.6) once('ch2', () => { village.clearRubble(t); VIL.ch = 2; S.ch2at = t })
+    return look
+  }
+  // 4. the potato-stick house draws itself on the rubble
+  look = faceHouse()
+  const c0 = S.ch2at ?? 0
+  if (t > c0 + 1.2) once('build2', () => village.startBuild('fries', t))
+  if (since('build2') > 0.6) once('what2', () => say('wait.', { mood: 'shock', hold: 1400 }))
+  if (since('build2') > B.sweepAt + 0.6) once('oh2', () => { mood('shock'); squash.vel += 4; say('ohh.', { mood: 'shock', hold: 1200 }) })
+  if (village.built('fries')) once('built2')
+  if (since('built2') > 0.8) once('love', () => { squash.vel += 5; say('…i love it.', { mood: 'happy', hold: 2400 }) })
+  // 5. he goes in (the door's tall enough). it closes behind him.
+  if (since('built2') > 3.6) {
+    look = null
+    once('in1', () => { VIL.goal = village.doorstep.clone() })
+    if (!VIL.goal && S.in1 && !S.in2) once('in2', () => { VIL.goal = village.inside.clone().add(new V3(0, 0, -0.6)) })
+    village.forceDoor = since('in1') < 3.6
+    VIL.homeInside = true
+  }
+  if (since('built2') > 9) VIL.intro = false
+  return look
+}
+
+function villageShot(dt) {
+  // animal crossing: high, from the front, following him. The opening frames him and the house together.
+  const c = carrot.position.clone().setY(0)
+  const intro = VIL.intro || VIL.homeInside ? 1 : 0     // (and while he's home inside, keep the whole house in frame)
+  VIL.mix = damp(VIL.mix ?? intro, intro, 1.5, dt)
+  const f = c.clone().lerp(new V3(0, 0, -1.4), 0.5 * VIL.mix)
+  const pos = f.clone().add(new V3(0, 6.2 + 2.6 * VIL.mix, 11.5 + 4.5 * VIL.mix)), look = f.clone().add(new V3(0, 1.0 + 0.9 * VIL.mix, 0))
+  const k = 1 - Math.exp(-4 * dt)
+  if (VIL.camPos.lengthSq() === 0) { VIL.camPos.copy(pos); VIL.camLook.copy(look) }
+  VIL.camPos.lerp(pos, k); VIL.camLook.lerp(look, k)
+  camera.position.copy(VIL.camPos)
+  const sh = village.shake * 0.14
+  if (sh > 0) camera.position.add(new V3(Math.sin(t * 61) * sh, Math.sin(t * 47) * sh, 0))
+  camera.lookAt(VIL.camLook)
 }
 
 // ?debug: a handle for testing from the console
@@ -3120,5 +3525,13 @@ if (new URLSearchParams(location.search).has('debug')) {
   window.__room = {
     story, openFamily, closeFamily, minis, openFile, desk, spitKey, kp, key, camera, carrot, plant, arms, torso, can, plantTop, say, idleState: idle, calm: () => ({ inDrawer: story.inDrawer, fam: story.familyOpen, copy: copyEl.hidden, bub: bubble.hidden, ib: story.idleBubble, game: game.open, walk: walk.on, busy: story.busy, sleep: story.sleeping, drag: drag.on, kp: kp.flying, t }),
     idle: (name) => { endIdle(); idle.name = name; idle.t0 = t; idle.until = t + IDLES[name].dur; IDLES[name].start() },
+    // run the scene forward to time `to` at 30fps (works in a hidden tab), then save a snapshot as tools/frames/<name>/<i>.png
+    step: async (to, name, i = 0) => {
+      window.__stepDt = 1 / 30
+      const raf = window.requestAnimationFrame; window.requestAnimationFrame = () => 0   // (don't queue a callback per stepped frame)
+      try { while (t < to) frame() } finally { window.requestAnimationFrame = raf; window.__stepDt = undefined }
+      if (name) await new Promise((r) => canvas.toBlob((b) => fetch(`/__frames?name=${name}&i=${i}`, { method: 'POST', body: b }).then(r), 'image/png'))
+      return t
+    },
   }
 }
