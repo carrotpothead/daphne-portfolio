@@ -198,7 +198,7 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
   const GZ = 2.4                                    // the fence line (world z)
   const pathStone = mat('#cbc3b4', { roughness: 0.9, clearcoat: 0 })
   for (let k = 0; k < 8; k++) {                     // flat, irregular stones (not discs), a little uneven
-    const sh = new THREE.Shape(), n = 7, base = 0.26 + ((k * 37) % 7) * 0.012
+    const sh = new THREE.Shape(), n = 7, base = 0.17 + ((k * 37) % 7) * 0.01
     for (let q = 0; q < n; q++) { const a = (q / n) * Math.PI * 2, r = base * (0.8 + ((k * 13 + q * 29) % 10) * 0.04); q ? sh.lineTo(Math.cos(a) * r * 1.3, Math.sin(a) * r) : sh.moveTo(Math.cos(a) * r * 1.3, Math.sin(a) * r) }
     const st = mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.05, bevelEnabled: true, bevelSize: 0.02, bevelThickness: 0.02, bevelSegments: 1 }), pathStone, { cast: false, receive: true })
     st.rotation.x = -Math.PI / 2; st.rotation.z = (k % 3 - 1) * 0.3
@@ -269,37 +269,37 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
   const across = Math.sqrt(1 - ((FZ - HILL.cz) / HILL.rz) ** 2), WALL = { hw: HILL.rx * across, h: HILL.ry * across }
   const wallTop = (x) => WALL.h * Math.sqrt(Math.max(0, 1 - (x / WALL.hw) ** 2))
   const hillY = (x, z) => HILL.ry * Math.sqrt(Math.max(0, 1 - (x / HILL.rx) ** 2 - ((z - HILL.cz) / HILL.rz) ** 2))
-  // the hill: dark grass underneath, so the gaps between blades read as shade (like the meadow)
-  const soilG = mat('#467f33', { roughness: 0.95, clearcoat: 0 }); soilG.clippingPlanes = [cut]
-  const hill = mesh(new THREE.SphereGeometry(1, 64, 32, 0, Math.PI * 2, 0, Math.PI / 2), soilG, { receive: true })
+  // the hill: smooth and soft, like a toy — light mint on top fading to a deeper green at the base
+  const hillGeo = new THREE.SphereGeometry(1, 72, 36, 0, Math.PI * 2, 0, Math.PI / 2)
+  { const pos = hillGeo.attributes.position, cols = [], top = new THREE.Color('#8fd26a'), base = new THREE.Color('#3f8f3a')
+    for (let k = 0; k < pos.count; k++) { const c = base.clone().lerp(top, Math.pow(pos.getY(k), 0.8)); cols.push(c.r, c.g, c.b) }
+    hillGeo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3)) }
+  const soilG = mat('#ffffff', { roughness: 0.75, clearcoat: 0.15, vertexColors: true }); soilG.clippingPlanes = [cut]
+  const hill = mesh(hillGeo, soilG, { receive: true })
   hill.scale.set(HILL.rx, HILL.ry, HILL.rz); hill.position.z = HILL.cz; burrow.add(hill)
-  // and the grass on it: one blade, 24,000 times, growing up (not out), leaning gently down the slope, all one gradient
+  // chunky three-leaf grass tufts dotted over it, and flowers in his colours (blue, orange, cream)
   {
-    const blade = new THREE.PlaneGeometry(0.05, 1, 1, 3); blade.translate(0, 0.5, 0)
-    const pos = blade.attributes.position, cols = [], lo = new THREE.Color('#467f33'), hi = new THREE.Color('#cfe58a')
-    for (let i = 0; i < pos.count; i++) { const y = pos.getY(i); pos.setX(i, pos.getX(i) * (1 - y * 0.9)); pos.setZ(i, y * y * 0.12); const c = lo.clone().lerp(hi, y * y * 0.6 + y * 0.4); cols.push(c.r, c.g, c.b) }
-    blade.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3)); blade.computeVertexNormals()
-    const gm = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.9 }); gm.clippingPlanes = [cut]
-    const NB = 24000, grassM = new THREE.InstancedMesh(blade, gm, NB)
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new V3(), p3 = new V3()
-    let made = 0
-    for (let k = 0; made < NB && k < NB * 3; k++) {
-      const a = r01(k, 41) * Math.PI * 2, y = r01(k, 42) * 0.985, ring = Math.sqrt(1 - y * y)
-      const nx = Math.cos(a) * ring, nz = Math.sin(a) * ring
-      p3.set(nx * HILL.rx, y * HILL.ry - 0.03, HILL.cz + nz * HILL.rz)
-      if (p3.z > FZ - 0.4) continue                                  // (behind the wall, so none pokes through the windows)
-      // up, with a lean down the slope (combed), a little random
-      const down = Math.atan2(nx, nz), lean = 0.18 + (1 - y) * 0.25
-      e.set(Math.cos(down) * lean + (r01(k, 43) - 0.5) * 0.2, r01(k, 44) * Math.PI * 2, -Math.sin(down) * lean + (r01(k, 45) - 0.5) * 0.2, 'YXZ')
-      const h = 0.22 + r01(k, 46) * 0.16, w = 1.0 + r01(k, 47) * 0.6
-      m4.compose(p3, q.setFromEuler(e), sc.set(w, h, w)); grassM.setMatrixAt(made++, m4)
+    const tuftLeaf = new THREE.SphereGeometry(0.1, 10, 8); tuftLeaf.scale(0.75, 2.6, 0.45); tuftLeaf.translate(0, 0.24, 0)   // a soft rounded leaf
+    const tuftM = mat('#4f9e3e', { roughness: 0.7, clearcoat: 0 }), tuftLt = mat('#7cc556', { roughness: 0.7, clearcoat: 0 })
+    const petals = [mat('#2338d4', { roughness: 0.5 }), mat('#f47b20', { roughness: 0.5 }), mat('#fff6e0', { roughness: 0.5 })], eyeM = mat('#ffd84a', { roughness: 0.5 })
+    for (let k = 0; k < 190; k++) {
+      const a = r01(k, 51) * Math.PI * 2, y = 0.1 + r01(k, 52) * 0.8, ring = Math.sqrt(1 - y * y)
+      const p = new V3(Math.cos(a) * ring * HILL.rx, y * HILL.ry - 0.02, HILL.cz + Math.sin(a) * ring * HILL.rz)
+      if (p.z > FZ - 0.2) continue
+      const g = new THREE.Group(); g.position.copy(p); burrow.add(g)
+      if (k % 3) {                                    // a tuft
+        for (let q = 0; q < 3; q++) { const lf = mesh(tuftLeaf, q === 1 ? tuftLt : tuftM); lf.rotation.set(0, a, (q - 1) * 0.55); g.add(lf) }
+        g.scale.setScalar(1.0 + r01(k, 53) * 0.9)
+      } else {                                        // a flower: five round petals around a yellow eye, on a stem
+        const st = mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.3, 5), tuftM, { cast: false }); st.position.y = 0.15; g.add(st)
+        const pm = petals[(k / 3 | 0) % 3]
+        for (let q = 0; q < 5; q++) { const pt = mesh(new THREE.SphereGeometry(0.085, 10, 8), pm, { cast: false }); const qa = (q / 5) * Math.PI * 2; pt.scale.y = 0.5; pt.position.set(Math.cos(qa) * 0.1, 0.32, Math.sin(qa) * 0.1); g.add(pt) }
+        const ey = mesh(new THREE.SphereGeometry(0.06, 10, 8), eyeM, { cast: false }); ey.position.y = 0.33; g.add(ey)
+      }
     }
-    grassM.count = made
-    grassM.receiveShadow = true
-    burrow.add(grassM)
   }
   // the front wall: cream plaster, the shape of the hill's cut edge, with holes for the door and two windows
-  const plaster = mat('#f0deb1', { roughness: 0.85, clearcoat: 0 }), wood = mat('#a9744a', { roughness: 0.7 }), woodDk = mat('#7d5233', { roughness: 0.75 })
+  const plaster = mat('#fbf1dc', { roughness: 0.7, clearcoat: 0.1 }), wood = mat('#f47b20', { roughness: 0.5 }), woodDk = mat('#c85f12', { roughness: 0.55 })   // his orange
   const DR = 0.84, DY = 0.88                               // the round door: radius, centre height (top 1.72: he ducks)
   const WINS = [{ x: -2.05, y: 1.0, r: 0.38 }, { x: 2.05, y: 1.0, r: 0.38 }]
   const wallS = new THREE.Shape()
@@ -321,14 +321,20 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
     const blk = box(0.16, 0.22, 0.2, 0.03, woodDk); blk.position.set(x, wallTop(x) - 0.12, FZ + 0.06); burrow.add(blk)
   }
   // the door: round, green, planks fanning out from a centre knob, in a timber ring; hinged on the left, swings in
-  const doorG = mat('#5f8f4c', { roughness: 0.6 }), doorDk = mat('#4c7a3c', { roughness: 0.6 })
+  const doorG = mat('#2338d4', { roughness: 0.35, clearcoat: 0.6 }), doorDk = mat('#1b2ba8', { roughness: 0.4 })   // his glasses blue
   const ringD = mesh(new THREE.TorusGeometry(DR + 0.07, 0.1, 12, 48), wood); ringD.position.set(0, DY, FZ + 0.02); burrow.add(ringD)
   const bHinge = new THREE.Group(); bHinge.position.set(-DR, DY, FZ - 0.12); burrow.add(bHinge)
   const dg = new THREE.Group(); dg.position.x = DR; bHinge.add(dg)
   const disc = mesh(new THREE.CylinderGeometry(DR - 0.02, DR - 0.02, 0.08, 40), doorG); disc.rotation.x = Math.PI / 2; dg.add(disc)
   for (let k = 0; k < 8; k++) { const sp = box(0.04, DR * 1.8, 0.02, 0.01, doorDk, { cast: false }); sp.rotation.z = (k * Math.PI) / 8; sp.position.z = 0.05; dg.add(sp) }
   const hub = mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.06, 20), doorDk); hub.rotation.x = Math.PI / 2; hub.position.z = 0.07; dg.add(hub)
-  const bKnob = mesh(new THREE.SphereGeometry(0.075, 14, 10), C.brass); bKnob.position.z = 0.12; dg.add(bKnob)
+  const bKnob = mesh(new THREE.SphereGeometry(0.08, 14, 10), mat('#f47b20', { roughness: 0.4 })); bKnob.position.z = 0.12; dg.add(bKnob)
+  // a little orange-and-cream striped awning over the door
+  for (let k = 0; k < 7; k++) {
+    const st = box(0.3, 0.06, 0.55, 0.02, k % 2 ? plaster : wood)
+    st.position.set(-0.9 + k * 0.3, DY + DR + 0.42, FZ + 0.27); st.rotation.x = 0.45; burrow.add(st)
+    const sc = mesh(new THREE.SphereGeometry(0.15, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), k % 2 ? plaster : wood); sc.rotation.x = Math.PI; sc.scale.y = 0.6; sc.position.set(-0.9 + k * 0.3, DY + DR + 0.3, FZ + 0.52); burrow.add(sc)
+  }
   // round windows with little panes
   for (const w of WINS) {
     const fr = mesh(new THREE.TorusGeometry(w.r + 0.04, 0.07, 10, 32), wood); fr.position.set(w.x, w.y, FZ + 0.02); burrow.add(fr)
@@ -345,7 +351,7 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
     const lt = new THREE.Group(); lt.position.set(sx * 1.25, 1.3, FZ + 0.12); burrow.add(lt)
     const arm = box(0.05, 0.05, 0.22, 0.01, woodDk); arm.position.z = -0.06; lt.add(arm)
     const lb = box(0.2, 0.28, 0.2, 0.04, C.glass); lb.position.set(0, -0.12, 0.05); lt.add(lb)
-    const lc = box(0.26, 0.05, 0.26, 0.02, woodDk); lc.position.set(0, 0.04, 0.05); lt.add(lc)
+    const lc = mesh(new THREE.ConeGeometry(0.2, 0.16, 4), doorG); lc.rotation.y = Math.PI / 4; lc.position.set(0, 0.1, 0.05); lt.add(lc)   // a little blue roof
   }
   // potted plants and a basket of apples by the door
   const terra = mat('#c9724a', { roughness: 0.7 })
@@ -370,9 +376,9 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
     const top = mesh(new THREE.SphereGeometry(0.11, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), capM); top.position.y = 0.16; m.add(top)
   }
   // a brick chimney with a cap, up on the hill, smoking
-  const brick = mat('#b4644a', { roughness: 0.85 }), CHX = 1.8, CHZ = -1.5, CHY = hillY(CHX, CHZ)
+  const brick = mat('#f47b20', { roughness: 0.6 }), CHX = 1.8, CHZ = -1.5, CHY = hillY(CHX, CHZ)
   const stack = box(0.55, 0.95, 0.55, 0.04, brick); stack.position.set(CHX, CHY + 0.3, CHZ); burrow.add(stack)
-  for (let k = 0; k < 4; k++) { const ln = box(0.57, 0.025, 0.57, 0.005, mat('#e2cdb6', { roughness: 0.9 }), { cast: false }); ln.position.set(CHX, CHY - 0.05 + k * 0.22, CHZ); burrow.add(ln) }
+  for (let k = 0; k < 2; k++) { const ln = box(0.57, 0.06, 0.57, 0.02, mat('#fff6e0', { roughness: 0.7 }), { cast: false }); ln.position.set(CHX, CHY + 0.1 + k * 0.3, CHZ); burrow.add(ln) }   // cream stripes
   const chCap = box(0.72, 0.1, 0.72, 0.03, brick); chCap.position.set(CHX, CHY + 0.82, CHZ); burrow.add(chCap)
   const chHole = mesh(new THREE.PlaneGeometry(0.4, 0.4), dark, { cast: false }); chHole.rotation.x = -Math.PI / 2; chHole.position.set(CHX, CHY + 0.875, CHZ); burrow.add(chHole)
   const bPuffs = [0, 1, 2, 3].map((k) => { const p = mesh(new THREE.SphereGeometry(0.15, 12, 10), C.smoke.clone(), { cast: false }); burrow.add(p); return { p, k } })
