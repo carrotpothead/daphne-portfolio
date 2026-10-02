@@ -8,8 +8,8 @@
  *  main.js walks him around; this file builds the place and animates it.
  *  The house story (for filming): house 1 is the cottage, but its door is
  *  too short for him (he's 2.8 tall with his leaves; it's 2.2): bonk.
- *  So he went on pinterest, and fell for a house made of potato sticks:
- *  house 2, variant 'fries'. With build: true, the house draws itself as
+ *  So he smashed it, and when asked what he actually wanted: a burrow.
+ *  House 2, variant 'burrow': a grassy hill; his leaves poke out the top. With build: true, the house draws itself as
  *  a wireframe, piece by piece from the ground up, then a sweep rises
  *  through it and paints it in. (Variant 'box': a plain grey box.)
  * ------------------------------------------------------------------ */
@@ -219,82 +219,62 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
   boxHouse.visible = variant === 'box'
   house.visible = variant === 'cottage' || variant === 'story'
 
-  // ---- house 2: made of potato sticks (he found it on pinterest. he loves it. nobody knows why) ----
-  const fries = new THREE.Group(); fries.position.set(HX, 0, HZ); world.add(fries)
-  fries.visible = variant === 'fries'
-  const FRY = ['#f5c04e', '#f2b544', '#f7c95e', '#eeab3c', '#f4bb4a'].map((c) => mat(c, { roughness: 0.62, clearcoat: 0.15 }))
-  const fryDark = mat('#d99a2e', { roughness: 0.7, clearcoat: 0.1 })
+  // ---- house 2: a burrow. carrots live underground. (it was his idea: "leaves poking out of a grassy hill.")
+  // A grassy hill with a round-topped wooden door in a stone arch, a round window, a lantern, a stone chimney.
+  // He walks in to the middle, and his leaves stick out of the top of the hill.
+  const burrow = new THREE.Group(); burrow.position.set(HX, 0, HZ); world.add(burrow)
+  burrow.visible = variant === 'burrow'
   const r01 = (i, k) => { const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x) }
-  let fi = 0
-  const fry = (len, x, y, z, axis = 'y', th = 0.2, parent = fries) => {
-    const g = axis === 'y' ? [th, len, th] : axis === 'x' ? [len, th, th] : [th, th, len]
-    const f = box(...g, 0.07, FRY[Math.floor(r01(++fi, 1) * FRY.length)]); f.position.set(x, y, z)
-    f.rotation.set((r01(fi, 2) - 0.5) * 0.04, (r01(fi, 3) - 0.5) * 0.06, (r01(fi, 4) - 0.5) * 0.04)   // hand-made: nothing quite straight
-    parent.add(f); return f
+  const HILL = { rx: 3.1, ry: 2.2, rz: 2.5 }        // top of the hill at 2.2: his body (2.1) hides, his leaves (to 2.8) poke out
+  const moss = mat('#6fb84f', { roughness: 0.9, clearcoat: 0 }), mossDk = mat('#4f9a3a', { roughness: 0.95, clearcoat: 0 })
+  const hill = mesh(new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2), moss, { receive: true })
+  hill.scale.set(HILL.rx, HILL.ry, HILL.rz); burrow.add(hill)
+  // lumps of moss and little bushes all over it (so it reads as a hill, not a dome)
+  for (let k = 0; k < 26; k++) {
+    const a = r01(k, 1) * Math.PI * 2, el = 0.15 + r01(k, 2) * 1.2
+    const n = new V3(Math.cos(a) * Math.cos(el), Math.sin(el), Math.sin(a) * Math.cos(el))
+    if (n.z > 0.55 && Math.abs(n.x) < 0.45 && n.y < 0.75) continue   // keep the door's face clear
+    const b = mesh(new THREE.IcosahedronGeometry(0.28 + r01(k, 3) * 0.32, 1), r01(k, 4) < 0.5 ? moss : mossDk)
+    b.position.set(n.x * HILL.rx, n.y * HILL.ry, n.z * HILL.rz); b.scale.y = 0.7; burrow.add(b)
   }
-  const FW2 = 4.2, FD2 = 3.3, FH2 = 3.9                       // walls: tall, so he fits
-  const FDW = 1.3, FDH = 3.05                                // the doorway: tall enough for him and his leaves
-  const WINS = [{ x: -1.35, y0: 1.5, y1: 2.9 }, { x: 1.35, y0: 1.5, y1: 2.9 }]   // arched windows either side
-  // a base of fries lying down
-  for (const [w, d] of [[FW2 + 0.3, 0], [0, FD2 + 0.3]]) for (const s of [-1, 1]) {
-    if (w) fry(w, 0, 0.12, s * (FD2 / 2 + 0.05), 'x', 0.24); else fry(d, s * (FW2 / 2 + 0.05), 0.12, 0, 'z', 0.24)
+  // the stone arch the door sits in (a flat face pushed into the front of the hill)
+  const stone = mat('#b9b0a2', { roughness: 0.9, clearcoat: 0 }), wood = mat('#c98a4b', { roughness: 0.6 }), woodDk = mat('#9a6332', { roughness: 0.7 })
+  const BDW = 1.4, BDH = 1.75, FZ = HILL.rz * 0.86        // a low hobbit door: this time he ducks
+  const archS = (w, h) => { const sh = new THREE.Shape(); sh.moveTo(-w / 2, 0); sh.lineTo(w / 2, 0); sh.lineTo(w / 2, h - w / 2); sh.absarc(0, h - w / 2, w / 2, 0, Math.PI, false); sh.closePath(); return sh }
+  const face = archS(BDW + 0.75, BDH + 0.36); face.holes.push(archS(BDW, BDH))
+  const arch = mesh(new THREE.ExtrudeGeometry(face, { depth: 0.9, bevelEnabled: true, bevelSize: 0.06, bevelThickness: 0.06, bevelSegments: 2 }), stone)
+  arch.position.set(0, 0, FZ - 0.5); burrow.add(arch)
+  for (let k = 0; k < 11; k++) {          // stones around the arch
+    const a = Math.PI * (k / 10), rr = BDW / 2 + 0.3
+    const st = box(0.34, 0.24, 0.16, 0.06, stone); st.position.set(Math.cos(a) * rr, BDH - BDW / 2 + Math.sin(a) * rr, FZ + 0.44); st.rotation.z = a - Math.PI / 2; burrow.add(st)
   }
-  // walls: fries standing side by side; the front has the doorway and two windows cut out of it
-  const step2 = 0.205
-  for (let x = -FW2 / 2 + 0.1; x <= FW2 / 2 - 0.09; x += step2) {
-    const cut = []
-    if (Math.abs(x) < FDW / 2) cut.push([0.24, 0.24 + FDH])
-    for (const w of WINS) if (Math.abs(x - w.x) < 0.42) cut.push([w.y0, w.y1])
-    let y = 0.24
-    for (const [a, b] of cut.sort((p, q) => p[0] - q[0])) { if (a - y > 0.05) fry(a - y, x, (y + a) / 2, FD2 / 2, 'y'); y = b }
-    // above the doorway / windows: the tops are uneven, like the reference (fries don't come in one length)
-    const top = FH2 + (r01(x * 10, 5) - 0.5) * 0.35
-    fry(top - y, x, (y + top) / 2, FD2 / 2, 'y')
-    fry(FH2 + (r01(x * 10, 6) - 0.5) * 0.35 - 0.24, x, (0.24 + FH2) / 2, -FD2 / 2, 'y')          // back wall (no holes)
+  const bHall = mesh(new THREE.ShapeGeometry(archS(BDW, BDH), 24), new THREE.MeshBasicMaterial({ color: '#3a2a1c' }), { cast: false })
+  bHall.position.set(0, 0, FZ + 0.38); burrow.add(bHall)
+  // the door: planks, a round-topped top, a brass knob in the middle (hobbit style), hinged on the left
+  const bHinge = new THREE.Group(); bHinge.position.set(-BDW / 2, 0, FZ + 0.42); burrow.add(bHinge)
+  const bDoor = mesh(new THREE.ExtrudeGeometry(archS(BDW - 0.04, BDH - 0.02), { depth: 0.08, bevelEnabled: false }), wood)
+  bDoor.position.x = BDW / 2; bHinge.add(bDoor)
+  for (let k = 1; k < 5; k++) { const pl = box(0.03, BDH - 0.4, 0.02, 0.01, woodDk, { cast: false }); pl.position.set(k * BDW / 5, (BDH - 0.4) / 2 + 0.05, 0.09); bHinge.add(pl) }
+  const bKnob = mesh(new THREE.SphereGeometry(0.08, 14, 10), C.brass); bKnob.position.set(BDW / 2, 0.9, 0.14); bHinge.add(bKnob)
+  // a round window up and to the right, glowing
+  const winR = mesh(new THREE.TorusGeometry(0.32, 0.07, 10, 28), woodDk); winR.position.set(1.85, 1.15, HILL.rz * 0.72); winR.rotation.y = 0.55; burrow.add(winR)
+  const winG = mesh(new THREE.CircleGeometry(0.34, 28), C.glass, { cast: false }); winG.position.copy(winR.position).add(new V3(-0.02, 0, -0.01)); winG.rotation.y = 0.55; burrow.add(winG)
+  for (const r of [0, Math.PI / 2]) { const bar = box(0.68, 0.04, 0.03, 0.01, woodDk, { cast: false }); bar.position.copy(winR.position).add(new V3(0.01, 0, 0.02)); bar.rotation.set(0, 0.55, r); burrow.add(bar) }
+  // a little lantern by the door
+  const lant = new THREE.Group(); lant.position.set(1.1, 1.3, FZ + 0.4); burrow.add(lant)
+  const lrod = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8), woodDk); lrod.position.set(0, 0.25, -0.1); lant.add(lrod)
+  const lbox = box(0.26, 0.34, 0.26, 0.05, C.glass); lant.add(lbox)
+  const lcap = box(0.32, 0.06, 0.32, 0.02, woodDk); lcap.position.set(0, 0.2, 0); lant.add(lcap)
+  // a stacked-stone chimney on the hill, off to the side, puffing
+  for (let k = 0; k < 4; k++) { const st = box(0.5 - k * 0.04, 0.24, 0.5 - k * 0.04, 0.07, stone); st.position.set(-1.6 + (k % 2) * 0.04, 1.75 + k * 0.23, -0.4); st.rotation.y = k * 0.4; burrow.add(st) }
+  // flowers either side of the door
+  const bloomCols = ['#ff7a9c', '#ffd84a', '#ffffff', '#d9c8ff', '#ff5a5a']
+  for (let k = 0; k < 14; k++) {
+    const side = k % 2 ? 1 : -1, x = side * (1.25 + r01(k, 7) * 0.9), z = FZ + 0.7 + r01(k, 8) * 0.5
+    const st2 = mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.35, 5), C.leaf, { cast: false }); st2.position.set(x, 0.17, z); burrow.add(st2)
+    const fl = mesh(new THREE.SphereGeometry(0.09, 10, 8), mat(bloomCols[k % bloomCols.length], { roughness: 0.6 }), { cast: false }); fl.scale.y = 0.65; fl.position.set(x, 0.38, z); burrow.add(fl)
   }
-  for (let z = -FD2 / 2 + 0.1; z <= FD2 / 2 - 0.09; z += step2) for (const s of [-1, 1]) {
-    const top = FH2 + (r01(z * 10 + s, 7) - 0.5) * 0.35
-    fry(top - 0.24, s * FW2 / 2, (0.24 + top) / 2, z, 'y')
-  }
-  // the dark insides of the doorway and windows, and ledges (fries lying across) under the windows and over the door
-  const hollow = new THREE.MeshBasicMaterial({ color: '#4a2f1c' })
-  const arch = (w, h) => { const sh = new THREE.Shape(); sh.moveTo(-w / 2, 0); sh.lineTo(w / 2, 0); sh.lineTo(w / 2, h - w / 2); sh.absarc(0, h - w / 2, w / 2, 0, Math.PI, false); sh.closePath(); return sh }
-  const fHall = mesh(new THREE.ShapeGeometry(arch(FDW - 0.02, FDH), 24), hollow, { cast: false }); fHall.position.set(0, 0.24, FD2 / 2 - 0.02); fries.add(fHall)
-  for (const w of WINS) {
-    const g = mesh(new THREE.ShapeGeometry(arch(0.78, w.y1 - w.y0), 20), new THREE.MeshStandardMaterial({ color: '#ffe0a0', emissive: '#ffbf5c', emissiveIntensity: 0.5 }), { cast: false })
-    g.position.set(w.x, w.y0, FD2 / 2 - 0.02); fries.add(g)
-    fry(1.1, w.x, w.y0 - 0.08, FD2 / 2 + 0.14, 'x', 0.18)                                   // sill
-    fry(0.95, w.x, w.y1 + 0.1, FD2 / 2 + 0.12, 'x', 0.16)                                   // lintel
-    const bar = fry(w.y1 - w.y0 - 0.1, w.x, (w.y0 + w.y1) / 2, FD2 / 2 + 0.02, 'y', 0.07)     // a thin fry down the middle
-  }
-  fry(FDW + 0.5, 0, 0.24 + FDH + 0.14, FD2 / 2 + 0.14, 'x', 0.22)                             // over the door
-  fry(4.0, 0, FH2 * 0.55, FD2 / 2 + 0.16, 'x', 0.14).visible = false                         // (a band would cut the windows; left out)
-  // the roof: a flat lid, then a heap of fries piled on top every which way
-  const lid = box(FW2 + 0.35, 0.16, FD2 + 0.35, 0.06, fryDark); lid.position.y = FH2 + 0.1; fries.add(lid)
-  for (let k = 0; k < 70; k++) {
-    const f = fry(0.9 + r01(k, 8) * 0.9, (r01(k, 9) - 0.5) * (FW2 - 0.3), FH2 + 0.28 + r01(k, 10) * 0.55 * (1 - Math.abs(r01(k, 9) - 0.5)), (r01(k, 11) - 0.5) * (FD2 - 0.3), 'x', 0.19)
-    f.rotation.set((r01(k, 12) - 0.5) * 0.9, r01(k, 13) * Math.PI, (r01(k, 14) - 0.5) * 0.7)
-  }
-  // the door: planks of fries, hinged on the left, swings in
-  const fHinge = new THREE.Group(); fHinge.position.set(-FDW / 2 + 0.02, 0.24, FD2 / 2 + 0.02); fries.add(fHinge)
-  for (let k = 0; k < 6; k++) {
-    const px = 0.11 + k * 0.205
-    const h = FDH - (px - FDW / 2 < 0 ? 0 : 0) - Math.max(0, (Math.abs(px - FDW / 2) / (FDW / 2)) ** 2 * (FDW / 2)) - 0.02
-    fry(h, px, h / 2, 0, 'y', 0.2, fHinge)
-  }
-  const fKnob = mesh(new THREE.SphereGeometry(0.07, 14, 10), mat('#c9362c', { roughness: 0.4 })); fKnob.position.set(FDW - 0.22, 1.35, 0.14); fHinge.add(fKnob)
-  // red fry cartons either side of the door, fries sticking out (planters)
-  const red = mat('#d8342b', { roughness: 0.45 }), redTrim = mat('#f6d24a', { roughness: 0.4 })
-  for (const s of [-1, 1]) {
-    const c = new THREE.Group(); c.position.set(s * 1.25, 0, FD2 / 2 + 0.75); fries.add(c)
-    const cup = mesh(new THREE.CylinderGeometry(0.34, 0.26, 0.6, 20), red); cup.position.y = 0.3; c.add(cup)
-    const band2 = mesh(new THREE.TorusGeometry(0.33, 0.035, 8, 28), redTrim); band2.rotation.x = Math.PI / 2; band2.position.y = 0.52; c.add(band2)
-    for (let k = 0; k < 9; k++) { const f = fry(0.5 + r01(k + s * 20, 15) * 0.3, (r01(k + s * 20, 16) - 0.5) * 0.4, 0.75, (r01(k + s * 20, 17) - 0.5) * 0.4, 'y', 0.09, c); f.rotation.z = (r01(k + s * 20, 18) - 0.5) * 0.5; f.rotation.x = (r01(k + s * 20, 19) - 0.5) * 0.5 }
-  }
-  // a little sign: "carroto" (on a fry)
-  const fSign = mesh(new THREE.PlaneGeometry(1.2, 0.375), new THREE.MeshStandardMaterial({ map: signTex, roughness: 0.6 }), { cast: false })
-  fSign.position.set(0, 0.24 + FDH + 0.42, FD2 / 2 + 0.26); fries.add(fSign)
-  const hinges = { cottage: hinge, fries: fHinge }
+  const hinges = { cottage: hinge, burrow: bHinge }
 
   // ---- building a house: a wireframe copy of every piece pops in, bottom to top; then a sweep rises and paints it in ----
   const WIRE = new THREE.MeshBasicMaterial({ color: '#2338d4', wireframe: true, transparent: true, opacity: 0.55 })
@@ -390,6 +370,9 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
   ]
   const doorstep = new V3(HX, 0, HZ + D / 2 + 0.55)    // right outside the door
   const inside = new V3(HX, 0, HZ + D / 2 - 0.55)      // just inside it (for the walk-out)
+  const burrowStep = new V3(HX, 0, HZ + FZ + 0.95)     // outside the burrow's door
+  const burrowDoorZ = HZ + FZ + 0.4
+  const burrowMiddle = new V3(HX, 0, HZ - 0.15)        // the middle of the hill: his leaves poke out the top
 
   // ---- animation ----
   let doorOpen = 0, gateOpen = 0
@@ -424,9 +407,10 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
     })
     api.shake = Math.max(0, 1 - du / 0.6) * (du >= 0 ? 1 : 0)
     // the door swings open when he's close to it (or it's told to), the gate when he's at the fence gap
-    const nearDoor = Math.hypot(him.x - doorstep.x, him.z - doorstep.z) < 1.4 || him.z < doorstep.z - 0.3 && Math.abs(him.x - HX) < 0.7
+    const ds = api.active === 'burrow' ? burrowStep : doorstep
+    const nearDoor = Math.hypot(him.x - ds.x, him.z - ds.z) < 1.4 || him.z < ds.z - 0.3 && Math.abs(him.x - HX) < 0.7
     doorOpen += (((nearDoor && !api.shut) || api.forceDoor ? 1 : 0) - doorOpen) * (1 - Math.exp(-5 * dt))   // (shut: he's home, door closed behind him)
-    if (hinges[api.active] && !api.smashed || api.active === 'fries') hinges[api.active].rotation.y = doorOpen * 1.55            // swings in
+    if (hinges[api.active] && (!api.smashed || api.active === 'burrow')) hinges[api.active].rotation.y = doorOpen * 1.55            // swings in
     const nearGate = Math.abs(him.z - GZ) < 1.1 && Math.abs(him.x) < 1.2
     gateOpen += ((nearGate ? 1 : 0) - gateOpen) * (1 - Math.exp(-5 * dt))
     gate.rotation.y = gateOpen * 1.5
@@ -444,12 +428,12 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
   const builds = []
   const buildOf = {}
   const want = variant === 'story' ? ['cottage'] : build ? [variant] : []
-  for (const v of want) { const g = v === 'fries' ? fries : house; buildOf[v] = makeBuild(g); builds.push(buildOf[v]) }
-  const api = { world, update, solids, doorstep, inside, house, fries, forceDoor: false, gateZ: GZ, BUILD, smashed: false, shake: 0,
-    active: variant === 'fries' ? 'fries' : 'cottage',
-    get doorTop() { return api.active === 'fries' ? 0.24 + FDH : 0.26 + DH },
-    // start drawing a house ('cottage' or 'fries') at time t
-    startBuild(v, t) { if (!buildOf[v]) { buildOf[v] = makeBuild(v === 'fries' ? fries : house); builds.push(buildOf[v]) } buildOf[v].at = t; api.active = v },
+  for (const v of want) { const g = v === 'burrow' ? burrow : house; buildOf[v] = makeBuild(g); builds.push(buildOf[v]) }
+  const api = { world, update, solids, doorstep, inside, burrowStep, burrowMiddle, burrowDoorZ, house, burrow, forceDoor: false, gateZ: GZ, BUILD, smashed: false, shake: 0,
+    active: variant === 'burrow' ? 'burrow' : 'cottage',
+    get doorTop() { return api.active === 'burrow' ? BDH : 0.26 + DH },
+    // start drawing a house ('cottage' or 'burrow') at time t
+    startBuild(v, t) { if (!buildOf[v]) { buildOf[v] = makeBuild(v === 'burrow' ? burrow : house); builds.push(buildOf[v]) } buildOf[v].at = t; api.active = v },
     built(v) { return !!buildOf[v]?.done },
     smash(t) { smash(house, t) }, clearRubble }
   return api

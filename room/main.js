@@ -3326,8 +3326,8 @@ function meadowShot(dt) {
  *  The house story, for filming: ?house=box (the first one my human built him; he hates it)
  *  and ?house=build (the new one draws itself as a wireframe, then paints in; he goes inside).
  *  ?story: the whole house story in one go. The cottage builds itself; its door's too short (bonk);
- *  he smashes it, clash of clans style; "i'm going on pinterest."; the potato-stick house builds on
- *  the rubble; he loves it; he goes in. ?story=2 starts at the potato-stick house.
+ *  he smashes it, clash of clans style; (then she asks him what he actually wants: a burrow); the burrow
+ *  builds on the rubble; he goes in, and his leaves poke out of the top of the hill. ?story=2 starts at the burrow.
  * ================================================================== */
 const VIL = { house: new URLSearchParams(location.search).has('story') ? 'story' : new URLSearchParams(location.search).get('house') || 'cottage', ch: new URLSearchParams(location.search).get('story') === '2' ? 2 : 1, S: {}, speed: 0, phase: 0, heading: 0, keys: new Set(), lastKey: -99, goal: null, camPos: new V3(), camLook: new V3(), intro: !new URLSearchParams(location.search).has('skip') }
 let village = null
@@ -3459,6 +3459,13 @@ function updateVillage(dt) {
   // a stomp (a hop up, a slam down), and the bonk (knocked back a step)
   carrot.position.y = VIL.hop > 0 ? Math.sin(Math.PI * (1 - VIL.hop / 0.5)) * 0.55 : 0
   if (VIL.knock > 0) { carrot.position.z += VIL.knock * dt * 3; VIL.knock = Math.max(0, VIL.knock - dt * 2) }
+  // ducking through the burrow's low door (this time he ducks)
+  if (village.burrowDoorZ != null) {
+    const dz = Math.abs(carrot.position.z - village.burrowDoorZ)
+    VIL.duck = damp(VIL.duck ?? 0, VIL.homeInside && dz < 0.9 && Math.abs(carrot.position.x) < 0.8 ? 1 : 0, 10, dt)
+    torso.scale.y *= 1 - 0.28 * VIL.duck
+    torso.scale.x *= 1 + 0.1 * VIL.duck; torso.scale.z *= 1 + 0.1 * VIL.duck
+  }
   pose('rest')
   sun.target.position.copy(carrot.position)
   sun.position.copy(carrot.position).add(new V3(-5, 10, 8))
@@ -3497,27 +3504,29 @@ function villageStory(faceHouse) {
     if (since('square') > 1.8) once('stomp', () => { VIL.hop = 0.5 })
     if (since('square') > 2.3) once('smash', () => { squash.vel += 9; village.smash(t) })
     if (since('smash') > 2.2) once('better', () => say('…better.', { mood: 'smug', hold: 1800 }))
-    if (since('smash') > 4.4) { VIL.heading = 0.2; look = null; once('pin', () => say("i'm going on pinterest.", { mood: 'happy', hold: 2400 })) }
+    if (since('smash') > 4.4) { VIL.heading = 0.2; look = null; once('pin', () => say('…now what.', { mood: 'sulk', hold: 2200 })) }
     if (since('smash') > 7.6) once('ch2', () => { village.clearRubble(t); VIL.ch = 2; S.ch2at = t })
     return look
   }
-  // 4. the potato-stick house draws itself on the rubble
+  // 4. the burrow draws itself on the rubble (he asked for it: "carrots literally live underground")
   look = faceHouse()
   const c0 = S.ch2at ?? 0
-  if (t > c0 + 1.2) once('build2', () => village.startBuild('fries', t))
-  if (since('build2') > 0.6) once('what2', () => say('wait.', { mood: 'shock', hold: 1400 }))
-  if (since('build2') > B.sweepAt + 0.6) once('oh2', () => { mood('shock'); squash.vel += 4; say('ohh.', { mood: 'shock', hold: 1200 }) })
-  if (village.built('fries')) once('built2')
-  if (since('built2') > 0.8) once('love', () => { squash.vel += 5; say('…i love it.', { mood: 'happy', hold: 2400 }) })
-  // 5. he goes in (the door's tall enough). it closes behind him.
-  if (since('built2') > 3.6) {
+  if (t > c0 + 1.2) once('build2', () => village.startBuild('burrow', t))
+  if (since('build2') > 0.6) once('what2', () => say('ooh.', { mood: 'shock', hold: 1200 }))
+  if (since('build2') > B.sweepAt + 0.6) once('oh2', () => { mood('shock'); squash.vel += 4; say('a burrow!', { mood: 'shock', hold: 1400 }) })
+  if (village.built('burrow')) once('built2')
+  if (since('built2') > 0.8) once('love', () => { squash.vel += 5; say("…it's perfect. carrots belong underground.", { mood: 'happy', hold: 2600 }) })
+  // 5. in he goes, to the middle of the hill: his leaves poke out of the top
+  if (since('built2') > 3.8) {
     look = null
-    once('in1', () => { VIL.goal = village.doorstep.clone() })
-    if (!VIL.goal && S.in1 && !S.in2) once('in2', () => { VIL.goal = village.inside.clone().add(new V3(0, 0, -0.6)) })
-    village.forceDoor = since('in1') < 3.6
+    once('in1', () => { VIL.goal = village.burrowStep.clone() })
+    if (!VIL.goal && S.in1 && !S.in2) once('in2', () => { VIL.goal = village.burrowMiddle.clone() })
+    if (since('in1') > 0.2 && !S.duckLine && S.in2) once('duckLine', () => say('(ducking this time.)', { hold: 1400 }))
+    if (S.in2 && !VIL.goal) once('home', () => { VIL.heading = 0; say('home.', { mood: 'happy', hold: 2400 }) })
+    village.forceDoor = since('in1') < 4.5
     VIL.homeInside = true
   }
-  if (since('built2') > 9) VIL.intro = false
+  if (since('built2') > 11) VIL.intro = false
   return look
 }
 
