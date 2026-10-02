@@ -3338,7 +3338,7 @@ if (WORLD === 'village') {
   renderer.localClippingEnabled = true
   village = createVillage({ scene, mat, mesh, canvasTex, variant: VIL.house === 'build' ? 'cottage' : VIL.house, build: VIL.house === 'build' })
   const front = village.doorstep.clone().add(new V3(0.9, 0, 1.3))
-  carrot.position.copy(VIL.intro && VIL.house === 'cottage' ? village.inside : VIL.house === 'story' ? new V3(-2.3, 0, 1.3) : VIL.house === 'build' ? new V3(2.2, 0, 1.2) : front)   // (the story: on the camera's side)
+  carrot.position.copy(VIL.intro && VIL.house === 'cottage' ? village.inside : VIL.house === 'build' || VIL.house === 'story' ? new V3(2.2, 0, 1.2) : front)
   scene.fog = new THREE.Fog(BG_LIT, 20, 48)
   camera.fov = 30; camera.updateProjectionMatrix()
   Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -7, far: 40 }); sun.shadow.camera.updateProjectionMatrix()
@@ -3507,7 +3507,7 @@ function villageStory(faceHouse) {
     if (S.bonk && !S.back && since('bonk') > 0.5) { const d = camera.position.clone().sub(carrot.position); VIL.heading = Math.atan2(d.x, d.z); look = camera.position.clone() }
     if (since('bonk') > 1.5) once('short', () => say("…it doesn't feel like me.", { mood: 'sulk', hold: 2400 }))
     // 3. he steps back… and smashes it
-    if (since('bonk') > 4.2) once('back', () => { VIL.goal = new V3(-0.5, 0, 1.6) })
+    if (since('bonk') > 4.2) once('back', () => { VIL.goal = new V3(0.4, 0, 1.6) })
     if (S.back && !VIL.goal) { once('square'); look = faceHouse() }
     if (since('square') > 0.5) once('glare', () => { mood('sulk'); say('…', { hold: 900 }) })
     if (since('square') > 1.8) once('stomp', () => { VIL.hop = 0.5 })
@@ -3545,11 +3545,11 @@ function villageShot(dt) {
   const c = carrot.position.clone().setY(0)
   const intro = VIL.intro || VIL.homeInside ? 1 : 0     // (and while he's home inside, keep the whole house in frame)
   VIL.mix = damp(VIL.mix ?? intro, intro, 1.5, dt)
-  const f = c.clone().lerp(new V3(0, 0, -1.4), (VIL.house === 'story' ? 0.82 : 0.5) * VIL.mix)   // (the story keeps the house centred)
+  const f = c.clone().lerp(new V3(0, 0, -1.4), 0.5 * VIL.mix)   // (the story keeps the house centred)
   // the story (and him at home): a 3/4 view from the front-left, a bit higher, like a cosy diorama
-  const threeQ = VIL.house === 'story' ? VIL.mix : 0
+  const threeQ = 0                                      // (tried a 3/4 view; she preferred the straight-on one)
   // the walk up to the door and the bonk: swing round to the right of the door, so we see him side-on
-  const S = VIL.S, atDoor = VIL.house === 'story' && VIL.ch === 1 && S.go && !S.back ? 1 : 0
+  const S = VIL.S, atDoor = 0
   VIL.side = damp(VIL.side ?? 0, atDoor, 1.6, dt)
   const off = new V3(0, 6.2 + 2.6 * VIL.mix, 11.5 + 4.5 * VIL.mix).lerp(new V3(-9.6, 7.8, 12.6), threeQ)
   off.lerp(new V3(5.8, 3.2, 6.4), VIL.side)
