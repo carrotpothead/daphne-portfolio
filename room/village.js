@@ -56,13 +56,13 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
   const house = new THREE.Group()
   house.position.set(HX, 0, HZ)
   world.add(house)
-  const plinth = box(W + 0.3, 0.26, D + 0.3, 0.06, C.plinth); plinth.position.y = 0.13; house.add(plinth)
+  const plinth = box(W + 0.3, 0.26, D + 0.3, 0.06, C.plinth); plinth.position.y = 0.13; house.add(plinth); plinth.userData.chunk = [5, 1, 4, true]
   const walls = box(W, WH, D, 0.12, C.wall); walls.position.y = 0.26 + WH / 2; house.add(walls); walls.userData.chunk = [5, 4, 4, true]   // (when smashed: breaks into a shell of chunks)
   // corner posts and a band under the eaves: a little timber frame
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     const p = box(0.16, WH, 0.16, 0.04, C.trim); p.position.set(sx * (W / 2 - 0.02), 0.26 + WH / 2, sz * (D / 2 - 0.02)); house.add(p)
   }
-  const band = box(W + 0.12, 0.14, D + 0.12, 0.04, C.trim); band.position.y = 0.26 + WH - 0.05; house.add(band)
+  const band = box(W + 0.12, 0.14, D + 0.12, 0.04, C.trim); band.position.y = 0.26 + WH - 0.05; house.add(band); band.userData.chunk = [6, 1, 5, true]
 
   // the roof: two slabs meeting at a ridge, with carrot rings (darker stripes) across them
   const RY = 0.26 + WH, PITCH = 0.62, SLAB = (D / 2 + 0.45) / Math.cos(PITCH), RL = W + 0.7
@@ -72,7 +72,7 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
     slab.rotation.x = s * PITCH
     const top = box(RL, 0.2, SLAB, 0.08, C.roof); slab.add(top); top.userData.chunk = [4, 1, 3, false]
     for (let k = 0; k < 4; k++) {
-      const ring = box(RL + 0.02, 0.05, 0.08, 0.02, C.roofDark, { cast: false })
+      const ring = box(RL + 0.02, 0.05, 0.08, 0.02, C.roofDark, { cast: false }); ring.userData.chunk = [5, 1, 1, false]
       ring.position.set(0, 0.1, (k - 1.5) * SLAB / 4.2); slab.add(ring)
     }
     house.add(slab)
@@ -226,7 +226,7 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
   burrow.visible = variant === 'burrow'
   const r01 = (i, k) => { const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x) }
   const HILL = { rx: 3.1, ry: 2.2, rz: 2.5 }        // top of the hill at 2.2: his body (2.1) hides, his leaves (to 2.8) poke out
-  const moss = mat('#6fb84f', { roughness: 0.9, clearcoat: 0 }), mossDk = mat('#4f9a3a', { roughness: 0.95, clearcoat: 0 })
+  const moss = mat('#4f9c3c', { roughness: 0.9, clearcoat: 0 }), mossDk = mat('#3c8530', { roughness: 0.95, clearcoat: 0 }), mossLt = mat('#7cc556', { roughness: 0.9, clearcoat: 0 })
   const hill = mesh(new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2), moss, { receive: true })
   hill.scale.set(HILL.rx, HILL.ry, HILL.rz); burrow.add(hill)
   // lumps of moss and little bushes all over it (so it reads as a hill, not a dome)
@@ -234,7 +234,7 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
     const a = r01(k, 1) * Math.PI * 2, el = 0.15 + r01(k, 2) * 1.2
     const n = new V3(Math.cos(a) * Math.cos(el), Math.sin(el), Math.sin(a) * Math.cos(el))
     if (n.z > 0.55 && Math.abs(n.x) < 0.45 && n.y < 0.75) continue   // keep the door's face clear
-    const b = mesh(new THREE.IcosahedronGeometry(0.28 + r01(k, 3) * 0.32, 1), r01(k, 4) < 0.5 ? moss : mossDk)
+    const b = mesh(new THREE.IcosahedronGeometry(0.28 + r01(k, 3) * 0.32, 1), r01(k, 4) < 0.4 ? mossLt : r01(k, 4) < 0.7 ? moss : mossDk)
     b.position.set(n.x * HILL.rx, n.y * HILL.ry, n.z * HILL.rz); b.scale.y = 0.7; burrow.add(b)
   }
   // the stone arch the door sits in (a flat face pushed into the front of the hill)
@@ -274,6 +274,51 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
     const st2 = mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.35, 5), C.leaf, { cast: false }); st2.position.set(x, 0.17, z); burrow.add(st2)
     const fl = mesh(new THREE.SphereGeometry(0.09, 10, 8), mat(bloomCols[k % bloomCols.length], { roughness: 0.6 }), { cast: false }); fl.scale.y = 0.65; fl.position.set(x, 0.38, z); burrow.add(fl)
   }
+  // a low stone wall around the bottom of the hill (so it stands off the lawn), with a gap for the door
+  const stones2 = [mat('#c9c0b0', { roughness: 0.9, clearcoat: 0 }), mat('#a99f90', { roughness: 0.9, clearcoat: 0 }), mat('#d8d0c2', { roughness: 0.9, clearcoat: 0 })]
+  for (let k = 0; k < 46; k++) {
+    const a = (k / 46) * Math.PI * 2
+    const x = Math.cos(a) * (HILL.rx + 0.08), z = Math.sin(a) * (HILL.rz + 0.08)
+    if (z > HILL.rz * 0.6 && Math.abs(x) < BDW / 2 + 0.55) continue
+    for (let row = 0; row < 2; row++) {
+      const st = box(0.42 + r01(k + row, 11) * 0.18, 0.2, 0.28, 0.07, stones2[(k + row) % 3])
+      st.position.set(x * (1 - row * 0.03), 0.1 + row * 0.19, z * (1 - row * 0.03)); st.rotation.y = -a + Math.PI / 2 + (r01(k, 12) - 0.5) * 0.2
+      burrow.add(st)
+    }
+  }
+  // wooden beams framing the door, like a hobbit hole
+  const beam = box(BDW + 1.15, 0.24, 0.3, 0.06, woodDk); beam.position.set(0, BDH + 0.42, FZ + 0.48); beam.rotation.z = 0.04; burrow.add(beam)
+  for (const sx of [-1, 1]) { const post = box(0.2, BDH + 0.4, 0.26, 0.05, woodDk); post.position.set(sx * (BDW / 2 + 0.5), (BDH + 0.4) / 2, FZ + 0.46); burrow.add(post) }
+  // a second, smaller round window up on the left
+  const win2 = mesh(new THREE.TorusGeometry(0.22, 0.06, 10, 24), woodDk); win2.position.set(-1.7, 1.25, HILL.rz * 0.66); win2.rotation.y = -0.6; burrow.add(win2)
+  const win2g = mesh(new THREE.CircleGeometry(0.21, 24), C.glass, { cast: false }); win2g.position.copy(win2.position).add(new V3(0.01, 0, -0.01)); win2g.rotation.y = -0.6; burrow.add(win2g)
+  // little trees growing on the hill
+  for (const [x, z, sc] of [[-1.3, -0.9, 1], [1.5, -1.1, 0.8], [0.4, -1.7, 0.7]]) {
+    const y = HILL.ry * Math.sqrt(Math.max(0, 1 - (x / HILL.rx) ** 2 - (z / HILL.rz) ** 2))
+    const tr = new THREE.Group(); tr.position.set(x, y - 0.05, z); tr.scale.setScalar(sc); burrow.add(tr)
+    const tk = mesh(new THREE.CylinderGeometry(0.06, 0.09, 0.6, 8), C.bark); tk.position.y = 0.3; tr.add(tk)
+    for (const [dx, dy, dz, r] of [[0, 0.8, 0, 0.42], [0.25, 0.65, 0.1, 0.3], [-0.24, 0.66, -0.05, 0.32], [0.05, 1.05, 0, 0.28]]) {
+      const cpy = mesh(new THREE.IcosahedronGeometry(r, 1), r > 0.35 ? mossLt : moss); cpy.position.set(dx, dy, dz); tr.add(cpy)
+    }
+  }
+  // terracotta pots by the door, a basket, and red mushrooms around the wall
+  const terra = mat('#d27a4e', { roughness: 0.7 }), cap = mat('#e8463c', { roughness: 0.5 }), dot = mat('#fff6e8', { roughness: 0.6 })
+  for (const [x, z] of [[-1.25, FZ + 0.85], [1.35, FZ + 0.8]]) {
+    const pot = mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.3, 14), terra); pot.position.set(x, 0.15, z); burrow.add(pot)
+    for (let k = 0; k < 3; k++) { const lf = mesh(new THREE.IcosahedronGeometry(0.16, 1), mossLt); lf.position.set(x + (k - 1) * 0.1, 0.4 + (k % 2) * 0.08, z); burrow.add(lf) }
+  }
+  const basket = box(0.36, 0.2, 0.26, 0.06, mat('#c9a063', { roughness: 0.8 })); basket.position.set(-1.6, 0.1, FZ + 1.1); basket.rotation.y = 0.3; burrow.add(basket)
+  for (let k = 0; k < 3; k++) { const ap = mesh(new THREE.SphereGeometry(0.07, 10, 8), cap); ap.position.set(-1.68 + k * 0.09, 0.25, FZ + 1.08 + (k % 2) * 0.05); burrow.add(ap) }
+  for (let k = 0; k < 7; k++) {
+    const a = 0.9 + k * 0.65, x = Math.cos(a) * (HILL.rx + 0.45), z = Math.sin(a) * (HILL.rz + 0.45)
+    if (z > HILL.rz * 0.5 && Math.abs(x) < 1.5) continue
+    const m = new THREE.Group(); m.position.set(x, 0, z); m.scale.setScalar(0.8 + r01(k, 13) * 0.6); burrow.add(m)
+    const stem = mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.18, 8), dot); stem.position.y = 0.09; m.add(stem)
+    const top = mesh(new THREE.SphereGeometry(0.11, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), cap); top.position.y = 0.16; m.add(top)
+    for (let q = 0; q < 3; q++) { const sp = mesh(new THREE.SphereGeometry(0.02, 6, 4), dot, { cast: false }); sp.position.set(Math.cos(q * 2.1) * 0.06, 0.24, Math.sin(q * 2.1) * 0.06); m.add(sp) }
+  }
+  // smoke from the chimney (animated in update)
+  const bPuffs = [0, 1, 2, 3].map((k) => { const p = mesh(new THREE.SphereGeometry(0.15, 12, 10), C.smoke.clone(), { cast: false }); burrow.add(p); return { p, k } })
   const hinges = { cottage: hinge, burrow: bHinge }
 
   // ---- building a house: a wireframe copy of every piece pops in, bottom to top; then a sweep rises and paints it in ----
@@ -392,6 +437,17 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
           if (Math.abs(u.v.y) < 0.4 && Math.hypot(u.v.x, u.v.z) < 0.3) u.still = true
         }
       }
+      // nothing ends up in him: if a piece's outline overlaps his body (a 0.5 circle, 2.4 tall), push it out sideways
+      if (sinkAt < 0) {
+        const bx = tmpBox.setFromObject(o)
+        const cx = Math.max(bx.min.x, Math.min(him.x, bx.max.x)), cz = Math.max(bx.min.z, Math.min(him.z, bx.max.z))
+        const dx = cx - him.x, dz = cz - him.z, dd = Math.hypot(dx, dz)
+        if (dd < 0.55 && bx.min.y < 2.4) {
+          const mx = (bx.min.x + bx.max.x) / 2 - him.x, mz = (bx.min.z + bx.max.z) / 2 - him.z, ml = Math.hypot(mx, mz) || 1
+          const push = 0.55 - dd + 0.02
+          o.position.x += (mx / ml) * push; o.position.z += (mz / ml) * push
+        }
+      }
       if (sinkAt > 0) { const k = Math.min(1, (t - sinkAt) / 1.2); o.position.y -= k * dt * 1.6; o.scale.multiplyScalar(1 - dt * 1.5 * k); if (k >= 1) o.visible = false }
     }
     // the dust: a ring of puffs rolls out from the house and rises, then thins away
@@ -423,6 +479,12 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
       p.material.opacity = 0.75 * (1 - u) * Math.min(1, u * 6)
     }
     flag.rotation.z = Math.sin(t * 2) * 0.03
+    for (const { p, k } of bPuffs) {
+      const u = ((t * 0.32 + k / bPuffs.length) % 1)
+      p.position.set(-1.58 + Math.sin(u * 5 + k) * 0.1 + u * 0.3, 2.75 + u * 1.4, -0.4)
+      p.scale.setScalar(0.55 + u * 1.5)
+      p.material.opacity = 0.7 * (1 - u) * Math.min(1, u * 6)
+    }
   }
   // the builds: made up front for the house(s) that will draw themselves
   const builds = []
