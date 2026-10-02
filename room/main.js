@@ -3389,7 +3389,9 @@ function updateVillage(dt) {
   const faceHouse = () => {
     // in the story his body turns half towards us (the camera) so we see his face; his eyes stay on the house
     const tgt = new V3(0, 1.6, -1.6)
-    if (VIL.house === 'story') tgt.lerp(camera.position.clone().setY(1.6), 0.55)
+    // (except for "oh.": then he really looks at it, and turns back to us for "a house? for me?")
+    const S = VIL.S, reveal = S.oh && !S.forme
+    if (VIL.house === 'story') tgt.lerp(camera.position.clone().setY(1.6), reveal ? 0.1 : 0.55)
     const h = tgt.sub(carrot.position); VIL.heading = Math.atan2(h.x, h.z); return new V3(0, 2.2, -1.6)
   }
   // the box: he looks at it. he's not impressed.
