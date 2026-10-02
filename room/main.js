@@ -3523,8 +3523,7 @@ function villageStory(faceHouse) {
     if (!VIL.goal && S.in1 && !S.in2) once('in2', () => { VIL.goal = village.burrowMiddle.clone() })
     if (since('in1') > 0.2 && !S.duckLine && S.in2) once('duckLine', () => say('(ducking this time.)', { hold: 1400 }))
     if (S.in2 && !VIL.goal) once('home', () => { VIL.heading = 0; say('home.', { mood: 'happy', hold: 2400 }) })
-    // inside: his leaves stick out of the top of the hill, wiggling happily
-    if (S.home) { torso.rotation.z = Math.sin(t * 3.2) * 0.09; carrot.position.y = Math.max(0, Math.sin(t * 2.4)) * 0.06 }
+
     village.forceDoor = since('in1') < 4.5
     VIL.homeInside = true
   }
