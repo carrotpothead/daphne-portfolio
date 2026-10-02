@@ -3338,7 +3338,7 @@ if (WORLD === 'village') {
   renderer.localClippingEnabled = true
   village = createVillage({ scene, mat, mesh, canvasTex, variant: VIL.house === 'build' ? 'cottage' : VIL.house, build: VIL.house === 'build' })
   const front = village.doorstep.clone().add(new V3(0.9, 0, 1.3))
-  carrot.position.copy(VIL.intro && VIL.house === 'cottage' ? village.inside : VIL.house === 'build' || VIL.house === 'story' ? new V3(2.2, 0, 1.2) : front)
+  carrot.position.copy(VIL.intro && VIL.house === 'cottage' ? village.inside : VIL.house === 'story' ? new V3(-2.3, 0, 1.3) : VIL.house === 'build' ? new V3(2.2, 0, 1.2) : front)   // (the story: on the camera's side)
   scene.fog = new THREE.Fog(BG_LIT, 20, 48)
   camera.fov = 30; camera.updateProjectionMatrix()
   Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -7, far: 40 }); sun.shadow.camera.updateProjectionMatrix()
@@ -3498,7 +3498,7 @@ function villageStory(faceHouse) {
     if (S.bonk) look = null
     if (since('bonk') > 1.5) once('short', () => say("the door's too short.", { mood: 'sulk', hold: 2200 }))
     // 3. he steps back… and smashes it
-    if (since('bonk') > 4.2) once('back', () => { VIL.goal = new V3(0.4, 0, 1.6) })
+    if (since('bonk') > 4.2) once('back', () => { VIL.goal = new V3(-0.5, 0, 1.6) })
     if (S.back && !VIL.goal) { once('square'); look = faceHouse() }
     if (since('square') > 0.5) once('glare', () => { mood('sulk'); say('…', { hold: 900 }) })
     if (since('square') > 1.8) once('stomp', () => { VIL.hop = 0.5 })
@@ -3536,8 +3536,11 @@ function villageShot(dt) {
   const c = carrot.position.clone().setY(0)
   const intro = VIL.intro || VIL.homeInside ? 1 : 0     // (and while he's home inside, keep the whole house in frame)
   VIL.mix = damp(VIL.mix ?? intro, intro, 1.5, dt)
-  const f = c.clone().lerp(new V3(0, 0, -1.4), 0.5 * VIL.mix)
-  const pos = f.clone().add(new V3(0, 6.2 + 2.6 * VIL.mix, 11.5 + 4.5 * VIL.mix)), look = f.clone().add(new V3(0, 1.0 + 0.9 * VIL.mix, 0))
+  const f = c.clone().lerp(new V3(0, 0, -1.4), (VIL.house === 'story' ? 0.82 : 0.5) * VIL.mix)   // (the story keeps the house centred)
+  // the story (and him at home): a 3/4 view from the front-left, a bit higher, like a cosy diorama
+  const threeQ = VIL.house === 'story' ? VIL.mix : 0
+  const off = new V3(0, 6.2 + 2.6 * VIL.mix, 11.5 + 4.5 * VIL.mix).lerp(new V3(-9.6, 7.8, 12.6), threeQ)
+  const pos = f.clone().add(off), look = f.clone().add(new V3(0, 1.0 + 0.9 * VIL.mix, 0))
   const k = 1 - Math.exp(-4 * dt)
   if (VIL.camPos.lengthSq() === 0) { VIL.camPos.copy(pos); VIL.camLook.copy(look) }
   VIL.camPos.lerp(pos, k); VIL.camLook.lerp(look, k)
