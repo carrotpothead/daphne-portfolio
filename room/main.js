@@ -3496,6 +3496,8 @@ function villageStory(faceHouse) {
     if (since('built1') > 3.2) once('go', () => { VIL.goal = village.doorstep.clone().add(new V3(0, 0, 0.05)) })
     if (S.go && !VIL.goal && !S.bonk) once('bonk', () => { squash.vel -= 7; VIL.knock = 0.35; mood('shock'); sfx.pip?.(); say('ow.', { mood: 'shock', hold: 1100 }) })
     if (S.bonk) look = null
+    // after the bonk he turns round to us (the camera) for "ow." and "the door's too short."
+    if (S.bonk && !S.back && since('bonk') > 0.5) { const d = camera.position.clone().sub(carrot.position); VIL.heading = Math.atan2(d.x, d.z); look = camera.position.clone() }
     if (since('bonk') > 1.5) once('short', () => say("the door's too short.", { mood: 'sulk', hold: 2200 }))
     // 3. he steps back… and smashes it
     if (since('bonk') > 4.2) once('back', () => { VIL.goal = new V3(-0.5, 0, 1.6) })
@@ -3539,8 +3541,12 @@ function villageShot(dt) {
   const f = c.clone().lerp(new V3(0, 0, -1.4), (VIL.house === 'story' ? 0.82 : 0.5) * VIL.mix)   // (the story keeps the house centred)
   // the story (and him at home): a 3/4 view from the front-left, a bit higher, like a cosy diorama
   const threeQ = VIL.house === 'story' ? VIL.mix : 0
+  // the walk up to the door and the bonk: swing round to the right of the door, so we see him side-on
+  const S = VIL.S, atDoor = VIL.house === 'story' && VIL.ch === 1 && S.go && !S.back ? 1 : 0
+  VIL.side = damp(VIL.side ?? 0, atDoor, 1.6, dt)
   const off = new V3(0, 6.2 + 2.6 * VIL.mix, 11.5 + 4.5 * VIL.mix).lerp(new V3(-9.6, 7.8, 12.6), threeQ)
-  const pos = f.clone().add(off), look = f.clone().add(new V3(0, 1.0 + 0.9 * VIL.mix, 0))
+  off.lerp(new V3(5.8, 3.2, 6.4), VIL.side)
+  const pos = f.clone().add(off), look = f.clone().add(new V3(0, 1.0 + 0.9 * VIL.mix, 0)).lerp(village.doorstep.clone().add(new V3(0, 1.4, 0)), VIL.side)
   const k = 1 - Math.exp(-4 * dt)
   if (VIL.camPos.lengthSq() === 0) { VIL.camPos.copy(pos); VIL.camLook.copy(look) }
   VIL.camPos.lerp(pos, k); VIL.camLook.lerp(look, k)
