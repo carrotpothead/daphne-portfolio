@@ -3386,7 +3386,12 @@ function updateVillage(dt) {
   let vx = (K.has('arrowright') || K.has('d') ? 1 : 0) - (K.has('arrowleft') || K.has('a') ? 1 : 0)
   let vz = (K.has('arrowdown') || K.has('s') ? 1 : 0) - (K.has('arrowup') || K.has('w') ? 1 : 0)
   let look = null
-  const faceHouse = () => { const h = new V3(0, 1.6, -1.6).sub(carrot.position); VIL.heading = Math.atan2(h.x, h.z); return new V3(0, 2.2, -1.6) }
+  const faceHouse = () => {
+    // in the story his body turns half towards us (the camera) so we see his face; his eyes stay on the house
+    const tgt = new V3(0, 1.6, -1.6)
+    if (VIL.house === 'story') tgt.lerp(camera.position.clone().setY(1.6), 0.55)
+    const h = tgt.sub(carrot.position); VIL.heading = Math.atan2(h.x, h.z); return new V3(0, 2.2, -1.6)
+  }
   // the box: he looks at it. he's not impressed.
   if (VIL.intro && VIL.house === 'box') {
     look = faceHouse()
@@ -3492,13 +3497,13 @@ function villageStory(faceHouse) {
     if (since('build1') > B.sweepAt + 0.6) once('oh', () => { mood('shock'); squash.vel += 4; say('oh.', { mood: 'shock', hold: 1200 }) })
     if (village.built('cottage')) once('built1')
     if (since('built1') > 0.8) once('forme', () => say('…a house? for me?', { mood: 'happy', hold: 2000 }))
-    // 2. up to the door… bonk
+    // 2. up to the door… bonk. (it's not the door. it just doesn't feel like him.)
     if (since('built1') > 3.2) once('go', () => { VIL.goal = village.doorstep.clone().add(new V3(0, 0, 0.05)) })
     if (S.go && !VIL.goal && !S.bonk) once('bonk', () => { squash.vel -= 7; VIL.knock = 0.35; mood('shock'); sfx.pip?.(); say('ow.', { mood: 'shock', hold: 1100 }) })
     if (S.bonk) look = null
     // after the bonk he turns round to us (the camera) for "ow." and "the door's too short."
     if (S.bonk && !S.back && since('bonk') > 0.5) { const d = camera.position.clone().sub(carrot.position); VIL.heading = Math.atan2(d.x, d.z); look = camera.position.clone() }
-    if (since('bonk') > 1.5) once('short', () => say("the door's too short.", { mood: 'sulk', hold: 2200 }))
+    if (since('bonk') > 1.5) once('short', () => say("…it doesn't feel like me.", { mood: 'sulk', hold: 2400 }))
     // 3. he steps back… and smashes it
     if (since('bonk') > 4.2) once('back', () => { VIL.goal = new V3(-0.5, 0, 1.6) })
     if (S.back && !VIL.goal) { once('square'); look = faceHouse() }
@@ -3523,7 +3528,7 @@ function villageStory(faceHouse) {
     look = null
     once('in1', () => { VIL.goal = village.burrowStep.clone() })
     if (!VIL.goal && S.in1 && !S.in2) once('in2', () => { VIL.goal = village.burrowMiddle.clone() })
-    if (since('in1') > 0.2 && !S.duckLine && S.in2) once('duckLine', () => say('(ducking this time.)', { hold: 1400 }))
+    if (since('in1') > 0.2 && !S.duckLine && S.in2) once('duckLine', () => say('(mind the head.)', { hold: 1400 }))
     if (S.in2 && !VIL.goal) once('home', () => { VIL.heading = 0; say('home.', { mood: 'happy', hold: 2400 }) })
 
     village.forceDoor = since('in1') < 4.5
