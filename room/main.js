@@ -244,9 +244,10 @@ const eyes = [-1, 1].map((side) => {
 const gaze = { x: new Spring(0, 240, 11), y: new Spring(0, 240, 11) }
 const eyeMid = surf(1.13, 0, -0.025)
 
-// agent carroto (the dock colleague) wears round cobalt glasses; ?glasses=1 on the render page.
-// The carrot on the site doesn't.
-const GLASSES = new URLSearchParams(location.search).has('glasses')
+// agent carroto (the dock colleague, and the instagram carroto) wears round cobalt glasses; ?glasses=1 on the render page.
+// The carrot on the site doesn't. In his worlds (/meadow, /village) he's agent carroto, so glasses on (&noglasses for the plain one).
+const GLASSES = new URLSearchParams(location.search).has('glasses') ||
+  ((location.pathname.startsWith('/meadow') || location.pathname.startsWith('/village')) && !new URLSearchParams(location.search).has('noglasses'))
 if (GLASSES) {
   const frameMat = mat(C.cobalt, { roughness: 0.3, clearcoat: 0.8, clearcoatRoughness: 0.15 })
   const lensMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.14 }) // a faint glint, cheap to render
@@ -3538,7 +3539,8 @@ if (new URLSearchParams(location.search).has('debug')) {
       window.__stepDt = 1 / 30
       const raf = window.requestAnimationFrame; window.requestAnimationFrame = () => 0   // (don't queue a callback per stepped frame)
       try { while (t < to) frame() } finally { window.requestAnimationFrame = raf; window.__stepDt = undefined }
-      if (name) await new Promise((r) => canvas.toBlob((b) => fetch(`/__frames?name=${name}&i=${i}`, { method: 'POST', body: b }).then(r), 'image/png'))
+      // read the pixels straight after the last frame (before the browser clears the drawing buffer)
+      if (name) { const url = canvas.toDataURL('image/png'); await fetch(`/__frames?name=${name}&i=${i}`, { method: 'POST', body: await (await fetch(url)).blob() }) }
       return t
     },
   }
