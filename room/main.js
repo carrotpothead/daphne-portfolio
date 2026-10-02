@@ -3462,7 +3462,7 @@ function updateVillage(dt) {
   // ducking through the burrow's low door (this time he ducks)
   if (village.burrowDoorZ != null) {
     const dz = Math.abs(carrot.position.z - village.burrowDoorZ)
-    VIL.duck = damp(VIL.duck ?? 0, VIL.homeInside && dz < 0.9 && Math.abs(carrot.position.x) < 0.8 ? 1 : 0, 10, dt)
+    VIL.duck = damp(VIL.duck ?? 0, VIL.homeInside && dz < 1.5 && Math.abs(carrot.position.x) < 0.8 ? 1 : 0, 10, dt)
     torso.scale.y *= 1 - 0.28 * VIL.duck
     torso.scale.x *= 1 + 0.1 * VIL.duck; torso.scale.z *= 1 + 0.1 * VIL.duck
   }
