@@ -248,6 +248,9 @@ const eyeMid = surf(1.13, 0, -0.025)
 // The carrot on the site doesn't. In his worlds (/meadow, /village) he's agent carroto, so glasses on (&noglasses for the plain one).
 const GLASSES = new URLSearchParams(location.search).has('glasses') ||
   ((location.pathname.startsWith('/meadow') || location.pathname.startsWith('/village')) && !new URLSearchParams(location.search).has('noglasses'))
+// all the glasses pieces live in one group, so a scene can take them off / put them on (the house story does)
+const specs = new THREE.Group()
+torso.add(specs)
 if (GLASSES) {
   const frameMat = mat(C.cobalt, { roughness: 0.3, clearcoat: 0.8, clearcoatRoughness: 0.15 })
   const lensMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.14 }) // a faint glint, cheap to render
@@ -267,14 +270,14 @@ if (GLASSES) {
     arm.position.set(e.side * 0.17, 0.02, -0.2)
     arm.rotation.y = -e.side * 0.35
     g.add(arm)
-    torso.add(g)
+    specs.add(g)
     ringAt.push(g.position.clone())
   }
   // the bridge between the lenses
   const mid = ringAt[0].clone().lerp(ringAt[1], 0.5)
   const bridge = mesh(new THREE.TorusGeometry(0.06, 0.018, 10, 24, Math.PI), frameMat)
   bridge.position.copy(mid).add(new V3(0, 0.02, 0.02))
-  torso.add(bridge)
+  specs.add(bridge)
 }
 
 const browMat = mat(C.leafDk, { roughness: 0.5 })
@@ -3473,7 +3476,12 @@ function villageStory(faceHouse) {
     // 1. the cottage draws itself
     look = faceHouse()
     if (t > 1.2) once('build1', () => village.startBuild('cottage', t))
-    if (since('build1') > 0.6) once('what', () => say("wait. what's that?", { mood: 'shock', hold: 2000 }))
+    // he starts without his glasses (he took them off to touch grass), squints at it… and puts them on
+    if (!S.specsOn) specs.visible = false
+    if (since('build1') > 0.5) once('squint', () => { mood('sleepy'); say("wait. i can't see it.", { hold: 1500 }) })
+    if (since('build1') > 2.0) once('specsOn', () => { specs.visible = true; S.specsAt = t; squash.vel += 4; say('…one sec. glasses.', { mood: 'happy', hold: 1300 }) })
+    if (S.specsAt) { const u = Math.min(1, (t - S.specsAt) / 0.35); specs.position.y = (1 - u) * 0.6 + Math.sin(Math.min(1, u) * Math.PI) * 0.03 }   // down onto his face
+    if (since('build1') > 3.4) once('what', () => say("okay. what's that?", { mood: 'shock', hold: 1600 }))
     if (since('build1') > B.sweepAt + 0.6) once('oh', () => { mood('shock'); squash.vel += 4; say('oh.', { mood: 'shock', hold: 1200 }) })
     if (village.built('cottage')) once('built1')
     if (since('built1') > 0.8) once('forme', () => say('…a house? for me?', { mood: 'happy', hold: 2000 }))
