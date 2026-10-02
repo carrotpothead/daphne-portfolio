@@ -23,7 +23,7 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
   scene.add(world)
   const box = (w, h, d, r, material, { cast = true, receive = true } = {}) => mesh(new RoundedBoxGeometry(w, h, d, 3, r), material, { cast, receive })
   const C = {
-    grass: mat('#5f9a40', { roughness: 0.95, clearcoat: 0 }),
+    grass: mat('#4a8836', { roughness: 0.95, clearcoat: 0 }),
     path: mat('#e6d6b8', { roughness: 0.9, clearcoat: 0 }),
     plinth: mat('#d8c7a8', { roughness: 0.8 }),
     wall: mat('#fbf1dc', { roughness: 0.7 }),
@@ -54,7 +54,7 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
   // the lawn: short grass over the whole village (one blade drawn 36,000 times), kept off the path, the houses and the fence line
   {
     const blade = new THREE.PlaneGeometry(0.045, 1, 1, 2); blade.translate(0, 0.5, 0)
-    const pos = blade.attributes.position, cols = [], lo = new THREE.Color('#5d9e3f'), hi = new THREE.Color('#bfe58a')
+    const pos = blade.attributes.position, cols = [], lo = new THREE.Color('#3f7f31'), hi = new THREE.Color('#8fc862')
     for (let i = 0; i < pos.count; i++) { const y = pos.getY(i); pos.setX(i, pos.getX(i) * (1 - y * 0.85)); pos.setZ(i, y * y * 0.08); const c = lo.clone().lerp(hi, y); cols.push(c.r, c.g, c.b) }
     blade.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3)); blade.computeVertexNormals()
     const lawnMat = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.95 })
@@ -271,16 +271,16 @@ export function createVillage({ scene, mat, mesh, canvasTex, variant = 'cottage'
   const hillY = (x, z) => HILL.ry * Math.sqrt(Math.max(0, 1 - (x / HILL.rx) ** 2 - ((z - HILL.cz) / HILL.rz) ** 2))
   // the hill: smooth and soft, like a toy — light mint on top fading to a deeper green at the base
   const hillGeo = new THREE.SphereGeometry(1, 72, 36, 0, Math.PI * 2, 0, Math.PI / 2)
-  { const pos = hillGeo.attributes.position, cols = [], top = new THREE.Color('#8fd26a'), base = new THREE.Color('#3f8f3a')
+  { const pos = hillGeo.attributes.position, cols = [], top = new THREE.Color('#5aa847'), base = new THREE.Color('#2e7432')
     for (let k = 0; k < pos.count; k++) { const c = base.clone().lerp(top, Math.pow(pos.getY(k), 0.8)); cols.push(c.r, c.g, c.b) }
     hillGeo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3)) }
-  const soilG = mat('#ffffff', { roughness: 0.75, clearcoat: 0.15, vertexColors: true }); soilG.clippingPlanes = [cut]
+  const soilG = mat('#a8b8a0', { roughness: 0.9, clearcoat: 0, vertexColors: true }); soilG.clippingPlanes = [cut]   // (tinted down: the bright light lifts it)
   const hill = mesh(hillGeo, soilG, { receive: true })
   hill.scale.set(HILL.rx, HILL.ry, HILL.rz); hill.position.z = HILL.cz; burrow.add(hill)
   // chunky three-leaf grass tufts dotted over it, and flowers in his colours (blue, orange, cream)
   {
     const tuftLeaf = new THREE.SphereGeometry(0.1, 10, 8); tuftLeaf.scale(0.75, 2.6, 0.45); tuftLeaf.translate(0, 0.24, 0)   // a soft rounded leaf
-    const tuftM = mat('#4f9e3e', { roughness: 0.7, clearcoat: 0 }), tuftLt = mat('#7cc556', { roughness: 0.7, clearcoat: 0 })
+    const tuftM = mat('#3b8636', { roughness: 0.7, clearcoat: 0 }), tuftLt = mat('#5fae46', { roughness: 0.7, clearcoat: 0 })
     const petals = [mat('#2338d4', { roughness: 0.5 }), mat('#f47b20', { roughness: 0.5 }), mat('#fff6e0', { roughness: 0.5 })], eyeM = mat('#ffd84a', { roughness: 0.5 })
     for (let k = 0; k < 190; k++) {
       const a = r01(k, 51) * Math.PI * 2, y = 0.1 + r01(k, 52) * 0.8, ring = Math.sqrt(1 - y * y)
